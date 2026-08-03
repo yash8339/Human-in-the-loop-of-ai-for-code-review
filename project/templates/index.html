@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Human-in-the-Loop AI Code Review</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; background: #f7f9fc; }
+    .card { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+    textarea { width: 100%; height: 220px; padding: 10px; }
+    button { padding: 10px 15px; margin-top: 10px; }
+    .finding { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
+    .metrics { display: flex; gap: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Human-in-the-Loop AI Code Review</h1>
+  <div class="card">
+    <h2>Paste source code</h2>
+    <form method="post">
+      <label>Language</label>
+      <select name="language">
+        <option value="python">Python</option>
+        <option value="java">Java</option>
+        <option value="cpp">C++</option>
+        <option value="javascript">JavaScript</option>
+      </select>
+      <br><br>
+      <textarea name="code" placeholder="Paste your code here">{{ default_code }}</textarea>
+      <br>
+      <button type="submit">Review Code</button>
+    </form>
+  </div>
+
+  {% if result %}
+  <div class="card">
+    <h2>Review Findings</h2>
+    {% for finding in result.findings %}
+    <div class="finding">
+      <strong>{{ finding.title }}</strong><br>
+      {{ finding.description }}<br>
+      Severity: {{ finding.severity }} | Confidence: {{ finding.confidence }} | Source: {{ finding.source }}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>Evaluation Summary</h2>
+    <div class="metrics">
+      <div>Accuracy: {{ result.accuracy }}</div>
+      <div>Precision: {{ result.precision }}</div>
+      <div>Recall: {{ result.recall }}</div>
+    </div>
+    <p>False Positive Rate: {{ result.false_positive_rate }}</p>
+    <p>Review Time: {{ result.review_time }}s</p>
+    <p>{{ result.summary }}</p>
+  </div>
+  {% endif %}
+</body>
+</html>
