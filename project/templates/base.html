@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}AI Code Review{% endblock %}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f2f6fb; color: #1f2937; }
+    .page { max-width: 1024px; margin: 0 auto; padding: 32px; }
+    .card { background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); padding: 24px; margin-bottom: 20px; }
+    h1, h2, h3 { margin-top: 0; color: #111827; }
+    .topnav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .topnav a { color: #2563eb; text-decoration: none; margin-left: 16px; }
+    .hero { background: #eef2ff; padding: 24px; border-radius: 16px; margin-bottom: 24px; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; margin-bottom: 12px; font-size: 16px; }
+    textarea { min-height: 200px; resize: vertical; }
+    button { padding: 12px 20px; background: #2563eb; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; }
+    button:hover { background: #1d4ed8; }
+    .error { color: #b91c1c; margin-bottom: 16px; }
+    .message { color: #047857; margin-bottom: 16px; }
+    .form-grid { display: grid; gap: 24px; grid-template-columns: 1fr; }
+    .home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .home-grid > div { background: #f8fafc; padding: 20px; border-radius: 16px; }
+    .small-text { color: #6b7280; font-size: 14px; }
+    .review-actions button { margin-right: 10px; margin-bottom: 10px; }
+    .link-button { display: inline-block; padding: 10px 16px; background: #f3f4f6; color: #111827; border-radius: 10px; text-decoration: none; }
+    .summary-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); }
+    .summary-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px; }
+    a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topnav">
+      <div>
+        <strong>Human-in-the-Loop AI Code Review</strong>
+      </div>
+      <div>
+        <a href="/">Home</a>
+        {% if session.user_id %}
+          <a href="/dashboard">Dashboard</a>
+          <a href="/logout">Logout</a>
+        {% else %}
+          <a href="/login">Login</a>
+          <a href="/register">Register</a>
+        {% endif %}
+      </div>
+    </div>
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

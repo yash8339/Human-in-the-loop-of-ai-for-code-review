@@ -1,5 +1,5 @@
 import os
-import sqlite3
+import pymysql
 from datetime import datetime
 
 from flask import Flask, redirect, render_template, request, session, url_for
@@ -18,76 +18,96 @@ except ModuleNotFoundError:
 app = Flask(__name__, template_folder="templates")
 app.secret_key = "human-in-the-loop-demo"
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "code_review.db")
+DB_NAME = "code_review"
+DB_CONFIG_BASE = {
+    "host": "127.0.0.1",
+    "user": "root",
+    "password": "",
+    "charset": "utf8mb4",
+    "cursorclass": pymysql.cursors.DictCursor,
+    "autocommit": False,
+}
+DB_CONFIG = {**DB_CONFIG_BASE, "database": DB_NAME}
 
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = pymysql.connect(**DB_CONFIG_BASE)
     cursor = conn.cursor()
-    cursor.executescript(
+    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}")
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    conn = pymysql.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    statements = [
         """
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS uploads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            language TEXT NOT NULL,
-            model TEXT NOT NULL,
-            analyzer TEXT NOT NULL,
-            filename TEXT,
-            content TEXT NOT NULL,
-            uploaded_at TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS reviews (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            upload_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT NOT NULL,
-            severity TEXT NOT NULL,
-            confidence REAL NOT NULL,
-            source TEXT NOT NULL,
-            FOREIGN KEY(upload_id) REFERENCES uploads(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS human_reviews (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            review_id INTEGER NOT NULL,
-            decision TEXT NOT NULL,
-            reviewer_name TEXT NOT NULL,
-            FOREIGN KEY(review_id) REFERENCES reviews(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            upload_id INTEGER NOT NULL,
-            accuracy REAL NOT NULL,
-            precision REAL NOT NULL,
-            recall REAL NOT NULL,
-            false_positive_rate REAL NOT NULL,
-            review_time REAL NOT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(upload_id) REFERENCES uploads(id)
-        );
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            password VARCHAR(255) NOT NULL
+        )
+        """,
         """
-    )
+        CREATE TABLE IF NOT EXISTS uploads (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            user_id INT NOT NULL,
+            language VARCHAR(100) NOT NULL,
+            model VARCHAR(100) NOT NULL,
+            analyzer VARCHAR(100) NOT NULL,
+            filename VARCHAR(255),
+            content TEXT NOT NULL,
+            uploaded_at DATETIME NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS reviews (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            upload_id INT NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            description TEXT NOT NULL,
+            severity VARCHAR(50) NOT NULL,
+            confidence DOUBLE NOT NULL,
+            source VARCHAR(100) NOT NULL,
+            FOREIGN KEY(upload_id) REFERENCES uploads(id)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS human_reviews (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            review_id INT NOT NULL,
+            decision VARCHAR(50) NOT NULL,
+            reviewer_name VARCHAR(255) NOT NULL,
+            FOREIGN KEY(review_id) REFERENCES reviews(id)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS reports (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            upload_id INT NOT NULL,
+            accuracy DOUBLE NOT NULL,
+            precision_score DOUBLE NOT NULL,
+            recall DOUBLE NOT NULL,
+            false_positive_rate DOUBLE NOT NULL,
+            review_time DOUBLE NOT NULL,
+            created_at DATETIME NOT NULL,
+            FOREIGN KEY(upload_id) REFERENCES uploads(id)
+        )
+        """,
+    ]
+
+    for statement in statements:
+        cursor.execute(statement)
+
     conn.commit()
+    cursor.close()
     conn.close()
 
 
-init_db()
-
-
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return pymysql.connect(**DB_CONFIG)
 
 
 def require_login():
@@ -110,38 +130,49 @@ def register():
         email = request.form.get("email", "").strip()
         password = request.form.get("password", "").strip()
         if not name or not email or not password:
-            return render_template("home.html", error="Please fill in all fields")
+            return render_template("register.html", error="Please fill in all fields")
 
         conn = get_db()
-        existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+        existing = cursor.fetchone()
         if existing:
+            cursor.close()
             conn.close()
-            return render_template("home.html", error="Email already registered")
+            return render_template("register.html", error="Email already registered")
 
-        conn.execute(
-            "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+        cursor.execute(
+            "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)",
             (name, email, generate_password_hash(password)),
         )
         conn.commit()
+        cursor.close()
         conn.close()
-        return redirect(url_for("home"))
-    return render_template("home.html")
+        return render_template("register.html", message="Registration successful. Please login.")
+
+    return render_template("register.html")
 
 
-@app.route("/login", methods=["POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    email = request.form.get("email", "").strip()
-    password = request.form.get("password", "").strip()
-    conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-    conn.close()
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
 
-    if user and check_password_hash(user["password"], password):
-        session["user_id"] = user["id"]
-        session["user_name"] = user["name"]
-        return redirect(url_for("dashboard"))
+        if user and check_password_hash(user["password"], password):
+            session["user_id"] = user["id"]
+            session["user_name"] = user["name"]
+            return redirect(url_for("dashboard"))
 
-    return render_template("home.html", error="Invalid email or password")
+        return render_template("login.html", error="Invalid email or password")
+
+    return render_template("login.html")
 
 
 @app.route("/logout")
@@ -167,7 +198,7 @@ def dashboard():
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO uploads (user_id, language, model, analyzer, filename, content, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO uploads (user_id, language, model, analyzer, filename, content, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
             (session["user_id"], language, model, analyzer, filename, code, uploaded_at),
         )
         upload_id = cursor.lastrowid
@@ -177,13 +208,13 @@ def dashboard():
         compute_metrics(result)
         for finding in result.findings:
             cursor.execute(
-                "INSERT INTO reviews (upload_id, title, description, severity, confidence, source) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO reviews (upload_id, title, description, severity, confidence, source) VALUES (%s, %s, %s, %s, %s, %s)",
                 (upload_id, finding.title, finding.description, finding.severity, finding.confidence, finding.source),
             )
         conn.commit()
 
         cursor.execute(
-            "INSERT INTO reports (upload_id, accuracy, precision, recall, false_positive_rate, review_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO reports (upload_id, accuracy, precision_score, recall, false_positive_rate, review_time, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
             (upload_id, result.accuracy, result.precision, result.recall, result.false_positive_rate, result.review_time, uploaded_at),
         )
         conn.commit()
@@ -192,10 +223,13 @@ def dashboard():
         return redirect(url_for("review_page", upload_id=upload_id))
 
     conn = get_db()
-    uploads = conn.execute(
-        "SELECT * FROM uploads WHERE user_id = ? ORDER BY id DESC",
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM uploads WHERE user_id = %s ORDER BY id DESC",
         (session["user_id"],),
-    ).fetchall()
+    )
+    uploads = cursor.fetchall()
+    cursor.close()
     conn.close()
     return render_template("dashboard.html", uploads=uploads)
 
@@ -207,8 +241,12 @@ def review_page(upload_id):
         return redirect_result
 
     conn = get_db()
-    upload = conn.execute("SELECT * FROM uploads WHERE id = ? AND user_id = ?", (upload_id, session["user_id"])).fetchone()
-    reviews = conn.execute("SELECT * FROM reviews WHERE upload_id = ?", (upload_id,)).fetchall()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM uploads WHERE id = %s AND user_id = %s", (upload_id, session["user_id"]))
+    upload = cursor.fetchone()
+    cursor.execute("SELECT * FROM reviews WHERE upload_id = %s", (upload_id,))
+    reviews = cursor.fetchall()
+    cursor.close()
     conn.close()
 
     if not upload:
@@ -226,13 +264,16 @@ def submit_decision(upload_id):
     review_id = request.form.get("review_id")
     decision = request.form.get("decision", "accept")
     conn = get_db()
-    review = conn.execute("SELECT * FROM reviews WHERE id = ?", (review_id,)).fetchone()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM reviews WHERE id = %s", (review_id,))
+    review = cursor.fetchone()
     if review:
-        conn.execute(
-            "INSERT INTO human_reviews (review_id, decision, reviewer_name) VALUES (?, ?, ?)",
+        cursor.execute(
+            "INSERT INTO human_reviews (review_id, decision, reviewer_name) VALUES (%s, %s, %s)",
             (review_id, decision, session.get("user_name", "Reviewer")),
         )
         conn.commit()
+    cursor.close()
     conn.close()
     return redirect(url_for("report_page", upload_id=upload_id))
 
@@ -244,13 +285,19 @@ def report_page(upload_id):
         return redirect_result
 
     conn = get_db()
-    upload = conn.execute("SELECT * FROM uploads WHERE id = ? AND user_id = ?", (upload_id, session["user_id"])).fetchone()
-    reviews = conn.execute("SELECT * FROM reviews WHERE upload_id = ?", (upload_id,)).fetchall()
-    human_reviews = conn.execute(
-        "SELECT hr.decision, r.title FROM human_reviews hr JOIN reviews r ON r.id = hr.review_id WHERE r.upload_id = ?",
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM uploads WHERE id = %s AND user_id = %s", (upload_id, session["user_id"]))
+    upload = cursor.fetchone()
+    cursor.execute("SELECT * FROM reviews WHERE upload_id = %s", (upload_id,))
+    reviews = cursor.fetchall()
+    cursor.execute(
+        "SELECT hr.decision, r.title FROM human_reviews hr JOIN reviews r ON r.id = hr.review_id WHERE r.upload_id = %s",
         (upload_id,),
-    ).fetchall()
-    report = conn.execute("SELECT * FROM reports WHERE upload_id = ?", (upload_id,)).fetchone()
+    )
+    human_reviews = cursor.fetchall()
+    cursor.execute("SELECT * FROM reports WHERE upload_id = %s", (upload_id,))
+    report = cursor.fetchone()
+    cursor.close()
     conn.close()
 
     if not upload:

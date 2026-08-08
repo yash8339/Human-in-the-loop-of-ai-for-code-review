@@ -1,54 +1,47 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Dashboard</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 30px; background: #f5f7fb; }
-    .container { max-width: 1000px; margin: auto; background: white; padding: 24px; border-radius: 12px; }
-    textarea, input, select { width: 100%; padding: 10px; margin-bottom: 10px; }
-    button { padding: 10px 15px; background: #2563eb; color: white; border: none; border-radius: 6px; }
-    .card { border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Dashboard</h1>
-    <p>Submit code for AI-assisted review and human validation.</p>
-    <a href="/logout">Logout</a>
-    <div class="card">
-      <h2>Upload Source Code</h2>
-      <form method="post">
-        <input name="filename" placeholder="Filename" value="review.py">
-        <select name="language">
-          <option value="python">Python</option>
-          <option value="java">Java</option>
-          <option value="cpp">C++</option>
-          <option value="javascript">JavaScript</option>
-        </select>
-        <select name="model">
-          <option>ChatGPT</option>
-          <option>Gemini</option>
-        </select>
-        <select name="analyzer">
-          <option>Semgrep</option>
-          <option>Bandit</option>
-        </select>
-        <textarea name="code" rows="12">def greet(name):\n    return f"Hello {name}"</textarea>
-        <button type="submit">Review Code</button>
-      </form>
+{% extends "base.html" %}
+{% block title %}Dashboard | AI Code Review{% endblock %}
+{% block content %}
+<div class="hero card">
+  <h1>Welcome, {{ session.user_name or 'Reviewer' }}</h1>
+  <p>Submit code for AI-assisted review, then validate findings and generate a final report.</p>
+</div>
+<div class="card">
+  <h2>Upload Source Code</h2>
+  <form method="post" class="form-grid">
+    <input name="filename" placeholder="Filename" value="review.py">
+    <select name="language">
+      <option value="python">Python</option>
+      <option value="java">Java</option>
+      <option value="cpp">C++</option>
+      <option value="javascript">JavaScript</option>
+    </select>
+    <select name="model">
+      <option>ChatGPT</option>
+      <option>Gemini</option>
+    </select>
+    <select name="analyzer">
+      <option>Semgrep</option>
+      <option>Bandit</option>
+    </select>
+    <textarea name="code" rows="12">def greet(name):
+    return f"Hello {name}"</textarea>
+    <button type="submit">Review Code</button>
+  </form>
+</div>
+<div class="card">
+  <h2>Past Uploads</h2>
+  {% if uploads %}
+    <div class="summary-grid">
+      {% for upload in uploads %}
+        <div class="summary-card">
+          <h3><a href="/review/{{ upload.id }}">{{ upload.filename }}</a></h3>
+          <p>{{ upload.language }} · {{ upload.model }} · {{ upload.analyzer }}</p>
+          <p class="small-text">Uploaded: {{ upload.uploaded_at }}</p>
+        </div>
+      {% endfor %}
     </div>
-
-    <div class="card">
-      <h2>Past Uploads</h2>
-      {% if uploads %}
-        {% for upload in uploads %}
-          <p><a href="/review/{{ upload.id }}">{{ upload.filename }} ({{ upload.language }})</a></p>
-        {% endfor %}
-      {% else %}
-        <p>No uploads yet.</p>
-      {% endif %}
-    </div>
-  </div>
-</body>
-</html>
+  {% else %}
+    <p>No uploads yet. Use the form above to submit code.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Register | AI Code Review{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Create an account</h1>
+  <p class="small-text">Register to start uploading code and reviewing AI findings.</p>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% if message %}<div class="message">{{ message }}</div>{% endif %}
+  <form method="post" class="form-grid">
+    <input name="name" placeholder="Name">
+    <input name="email" placeholder="Email">
+    <input name="password" type="password" placeholder="Password">
+    <button type="submit">Register</button>
+  </form>
+</div>
+{% endblock %}
