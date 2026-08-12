@@ -1,14 +1,212 @@
 {% extends "base.html" %}
 {% block title %}Login | AI Code Review{% endblock %}
+
 {% block content %}
-<div class="card">
-  <h1>Login</h1>
-  <p class="small-text">Enter your credentials to access your dashboard.</p>
-  {% if error %}<div class="error">{{ error }}</div>{% endif %}
-  <form method="post" class="form-grid">
-    <input name="email" placeholder="Email">
-    <input name="password" type="password" placeholder="Password">
-    <button type="submit">Login</button>
-  </form>
+<style>
+  :root {
+    --image-bg-dark: #291a32;
+    --image-bg-light: #160f22;
+    --image-glass: rgba(255, 255, 255, 0.04);
+    --image-accent-red: rgba(180, 50, 70, 0.35);
+    --image-accent-blue: rgba(100, 150, 255, 0.25);
+    --image-button-gradient: linear-gradient(135deg, #1d0f2f 0%, #30264b 50%, #465f8a 100%);
+    --image-text-main: #ffffff;
+    --image-text-muted: rgba(255, 255, 255, 0.65);
+  }
+
+  /* Full screen absolute centering reset */
+  .login-screen-center {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 75% 25%, var(--image-accent-red) 0%, transparent 45%),
+                radial-gradient(circle at 25% 75%, var(--image-accent-blue) 0%, transparent 45%),
+                linear-gradient(var(--image-bg-dark), var(--image-bg-light));
+    z-index: 9999;
+    overflow: hidden;
+  }
+
+  /* Glassmorphism Card Box */
+  .main-glass-card {
+    background: var(--image-glass);
+    width: 100%;
+    max-width: 380px;
+    padding: 45px 35px;
+    border-radius: 40px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* Avatar Icon Visual */
+  .avatar-visual {
+    width: 90px;
+    height: 90px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    margin: 0 auto 35px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .avatar-visual img {
+    width: 50%;
+    opacity: 0.4;
+  }
+
+  /* Error Alert */
+  .error-message {
+    color: #ff507a;
+    background: rgba(255, 80, 122, 0.12);
+    border: 1px solid rgba(255, 80, 122, 0.3);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    text-align: left;
+  }
+
+  .login-form-container {
+    width: 100%;
+  }
+
+  /* Input Fields */
+  .input-group {
+    position: relative;
+    width: 100%;
+    margin-bottom: 25px;
+  }
+
+  .input-icon {
+    position: absolute;
+    left: 4px;
+    top: 8px;
+    font-size: 18px;
+    color: var(--image-text-muted);
+  }
+
+  .login-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 10px 10px 10px 38px;
+    color: var(--image-text-main);
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+  }
+
+  .login-input::placeholder {
+    color: var(--image-text-muted);
+    font-size: 14px;
+  }
+
+  .login-input:focus {
+    border-bottom-color: #ffffff;
+  }
+
+  .input-group label.mail-icon::before { content: "✉"; }
+  .input-group label.lock-icon::before { content: "🔒"; }
+
+  /* Options Row */
+  .form-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--image-text-muted);
+    font-size: 12px;
+    margin-top: 5px;
+    margin-bottom: 30px;
+  }
+
+  .remember-me-block {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  .remember-me-block input[type="checkbox"] {
+    accent-color: #465f8a;
+    cursor: pointer;
+  }
+
+  .form-actions-row a {
+    color: var(--image-text-muted);
+    text-decoration: none;
+  }
+
+  .form-actions-row a:hover {
+    color: #ffffff;
+  }
+
+  /* Submit Button */
+  .login-submit-btn {
+    width: 100%;
+    height: 50px;
+    border: none;
+    border-radius: 12px;
+    background: var(--image-button-gradient);
+    color: var(--image-text-main);
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .login-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  }
+</style>
+
+<div class="login-screen-center">
+  <div class="main-glass-card">
+    
+    <!-- User Silhouette Icon -->
+    <div class="avatar-visual">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzkuMjQgMiA3IDQuMjQgNyA3QzcgOS43NiA5LjI0IDEyIDEyIDEyQzE0Ljc2IDEyIDE3IDkuNzYgMTcgN0MxNyA0LjI0IDE0Ljc2IDIgMTIgMlpNMTIgMTRDNi40OCAxNCAy IDE4LjQ4IDIgMjRINFYyMkM0IDE5Ljc5IDUuNzkgMTggOCAxOEgxNkMxOC4yMSAxOCAyMCAxOS43OSAyMCAyMlYyNEgyMlYyNEMyMiAxOC40OCAxNy41MiAxNCAxMiAxNFoiLz48L3N2Zz4=" alt="User Icon" />
+    </div>
+
+    {% if error %}<div class="error-message">{{ error }}</div>{% endif %}
+
+    <form method="post" class="login-form-container">
+      
+      <div class="input-group">
+        <label for="email" class="input-icon mail-icon"></label>
+        <input id="email" name="email" type="email" placeholder="Email ID" class="login-input" required>
+      </div>
+
+      <div class="input-group">
+        <label for="password" class="input-icon lock-icon"></label>
+        <input id="password" name="password" type="password" placeholder="Password" class="login-input" required>
+      </div>
+
+      <div class="form-actions-row">
+        <label class="remember-me-block">
+          <input id="remember" type="checkbox" name="remember">
+          <span>Remember me</span>
+        </label>
+        <a href="#">Forgot Password?</a>
+      </div>
+
+      <button type="submit" class="login-submit-btn">Login</button>
+
+    </form>
+  </div>
 </div>
 {% endblock %}

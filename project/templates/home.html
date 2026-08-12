@@ -1,41 +1,438 @@
 {% extends "base.html" %}
-{% block title %}Welcome | AI Code Review{% endblock %}
+{% block title %}Human-in-the-Loop AI Code Review{% endblock %}
+
 {% block content %}
-<div class="hero card">
-  <h1>Human-in-the-Loop AI Code Review</h1>
-  <p>Upload code, review AI findings, and validate issues with human decisions. Start by logging in or creating an account.</p>
-  <div class="summary-grid">
-    <div class="summary-card">
-      <h3>AI & Static Analysis</h3>
-      <p>Combine LLM and analyzer findings to surface code review issues.</p>
+<style>
+  /* Base Layout & Theme */
+  .landing-container {
+    display: flex;
+    flex-direction: column;
+    gap: 3.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1rem 1rem 3rem 1rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Hero Section */
+  .hero-section {
+    text-align: center;
+    padding: 2.5rem 1rem 1rem;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #6366f1;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  .hero-title {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 1.2rem;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero-subtitle {
+    font-size: 1.2rem;
+    color: #475569;
+    max-width: 680px;
+    margin: 0 auto 2.2rem;
+    line-height: 1.6;
+  }
+
+  .hero-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+  }
+
+  .btn-primary {
+    background: #4f46e5;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  }
+
+  .btn-primary:hover {
+    background: #4338ca;
+    transform: translateY(-1px);
+  }
+
+  .btn-outline {
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+  }
+
+  .btn-outline:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+  }
+
+  /* Mock Editor UI Preview */
+  .preview-section {
+    background: #0f172a;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #1e293b;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    color: #e2e8f0;
+  }
+
+  .window-header {
+    background: #1e293b;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #334155;
+  }
+
+  .window-controls {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .dot.red { background: #ef4444; }
+  .dot.yellow { background: #f59e0b; }
+  .dot.green { background: #10b981; }
+
+  .window-title {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    font-family: monospace;
+  }
+
+  .badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+
+  .diff-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  .code-panel {
+    background: #020617;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #1e293b;
+  }
+
+  .panel-header {
+    font-size: 0.8rem;
+    color: #38bdf8;
+    margin-bottom: 0.8rem;
+    font-weight: 600;
+  }
+
+  .code-panel pre {
+    margin: 0;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+
+  .line-del {
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.15);
+    display: block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: 2px;
+  }
+
+  .line-add {
+    color: #4ade80;
+    background: rgba(34, 197, 94, 0.15);
+    display: block;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .action-panel {
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .action-panel h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    color: #f8fafc;
+  }
+
+  .action-panel p {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-bottom: 1.2rem;
+  }
+
+  .decision-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+  }
+
+  .btn-success { background: #10b981; color: white; }
+  .btn-danger { background: #ef4444; color: white; }
+  .btn-secondary { background: #475569; color: white; }
+
+  /* Metrics Section */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .stat-card {
+    background: #ffffff;
+    padding: 1.8rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .stat-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #4f46e5;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-label {
+    color: #64748b;
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  /* Features Workflow */
+  .section-heading {
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 2rem;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .feature-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 1.8rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .feature-icon {
+    font-size: 2.2rem;
+    margin-bottom: 1rem;
+  }
+
+  .feature-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.15rem;
+    color: #0f172a;
+  }
+
+  .feature-card p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  /* Alert Messages */
+  .message, .error {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    text-align: center;
+    font-weight: 500;
+  }
+  .message { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+  .error { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .diff-container {
+      grid-template-columns: 1fr;
+    }
+    .hero-title {
+      font-size: 2.2rem;
+    }
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  }
+</style>
+
+<div class="landing-container">
+  
+  <!-- HERO SECTION -->
+  <section class="hero-section">
+    <div class="hero-badge">
+      <span class="pulse-dot"></span> Next-Gen Developer Tooling
     </div>
-    <div class="summary-card">
-      <h3>Human Verification</h3>
-      <p>Accept, reject, or modify AI suggestions before report generation.</p>
+    <h1 class="hero-title">
+      AI Precision Powered by <span class="gradient-text">Human Expertise</span>
+    </h1>
+    <p class="hero-subtitle">
+      Automate linting, catch deep security vulnerabilities, and validate AI code recommendations with a seamless human verification workflow.
+    </p>
+    <div class="hero-actions">
+      <a href="/login" class="btn btn-primary">Start Code Review</a>
+      <a href="#how-it-works" class="btn btn-outline">Explore Workflow</a>
     </div>
-  </div>
-</div>
-<div class="card">
-  <div class="form-grid home-grid">
-    <div>
-      <h2>Register</h2>
-      <form method="post" action="/register">
-        <input name="name" placeholder="Name">
-        <input name="email" placeholder="Email">
-        <input name="password" type="password" placeholder="Password">
-        <button type="submit">Register</button>
-      </form>
+  </section>
+
+  <!-- LIVE CODE REVIEW MOCK PREVIEW -->
+  <section class="preview-section">
+    <div class="window-header">
+      <div class="window-controls">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="window-title">app/auth.py — Interactive AI Diff Preview</div>
+      <div class="window-status"><span class="badge badge-warning">Awaiting Human Review</span></div>
     </div>
-    <div>
-      <h2>Login</h2>
-      <form method="post" action="/login">
-        <input name="email" placeholder="Email">
-        <input name="password" type="password" placeholder="Password">
-        <button type="submit">Login</button>
-      </form>
+    
+    <div class="diff-container">
+      <div class="code-panel">
+        <div class="panel-header">⚡ AI Flagged Issue (Confidence: 96%)</div>
+        <pre><code><span class="line-del">- user_input = request.form['query']</span>
+<span class="line-del">- cursor.execute(f"SELECT * FROM users WHERE name = '{user_input}'")</span>
+<span class="line-add">+ # AI Fix: Prevent SQL Injection using parameterized query</span>
+<span class="line-add">+ cursor.execute("SELECT * FROM users WHERE name = %s", (user_input,))</span></code></pre>
+      </div>
+      <div class="action-panel">
+        <h4>Human Decision</h4>
+        <p>Validate AI fix before merging into production:</p>
+        <div class="decision-buttons">
+          <button class="btn btn-success btn-sm">Accept Fix</button>
+          <button class="btn btn-danger btn-sm">Reject</button>
+          <button class="btn btn-secondary btn-sm">Modify Code</button>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <!-- STATS / METRICS -->
+  <section class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-number">99.2%</div>
+      <div class="stat-label">Review Accuracy Rate</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">4.5x</div>
+      <div class="stat-label">Faster PR Approvals</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">0%</div>
+      <div class="stat-label">False Positives Merged</div>
+    </div>
+  </section>
+
+  <!-- FEATURE WORKFLOW -->
+  <section id="how-it-works">
+    <h2 class="section-heading">How Human-in-the-Loop Works</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>1. AI & Static Analysis</h3>
+        <p>Combines LLM capabilities with static code analysis to instantly detect security bugs and performance bottlenecks.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👤</div>
+        <h3>2. Human Verification</h3>
+        <p>Reviewers inspect AI suggestions side-by-side to accept, reject, or fine-tune fixes with full control.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>3. Automated Deployment</h3>
+        <p>Approved patches are merged back into your pipeline with complete audit trails and reporting.</p>
+      </div>
+    </div>
+  </section>
+
   {% if message %}<div class="message">{{ message }}</div>{% endif %}
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
 </div>
 {% endblock %}
