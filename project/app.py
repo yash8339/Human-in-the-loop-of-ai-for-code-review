@@ -22,7 +22,7 @@ DB_NAME = "code_review"
 DB_CONFIG_BASE = {
     "host": "127.0.0.1",
     "user": "root",
-    "password": "",
+    "password": "Meshva@1",
     "charset": "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor,
     "autocommit": False,
@@ -204,7 +204,7 @@ def dashboard():
         upload_id = cursor.lastrowid
         conn.commit()
 
-        result = analyze_code(code, language=language)
+        result = analyze_code(code, language=language, analyzer=analyzer)
         compute_metrics(result)
         for finding in result.findings:
             cursor.execute(

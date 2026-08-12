@@ -24,3 +24,8 @@ def test_compute_metrics_returns_values():
     assert 0 <= result.precision <= 1
     assert 0 <= result.recall <= 1
     assert 0 <= result.false_positive_rate <= 1
+
+
+def test_analyze_code_uses_module_titles_for_structured_findings():
+    result = analyze_code("exec('print(1)')", language="python")
+    assert any(finding.title == "dynamic-execution" for finding in result.findings)
