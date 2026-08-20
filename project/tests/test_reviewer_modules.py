@@ -56,3 +56,25 @@ def test_static_analysis_uses_selected_analyzer_rule_ids():
     assert findings_semgrep
     assert findings_bandit
     assert findings_semgrep[0]["rule_id"] != findings_bandit[0]["rule_id"]
+
+
+def test_static_analysis_handles_windows_cp1252_decode_issue(monkeypatch, tmp_path):
+    file_path = tmp_path / "sample.py"
+    file_path.write_text("print('hi')\n", encoding="utf-8")
+
+    def fake_run(cmd, **kwargs):
+        if kwargs.get("text") is True and kwargs.get("encoding") is None:
+            raise UnicodeDecodeError("cp1252", b"\x90", 0, 1, "character maps to <undefined>")
+        return type(
+            "Result",
+            (),
+            {"stdout": '{"results":[{"extra":{"rule_id":"R001","severity":"high","message":"unsafe"},"start":{"line":1}}]}', "stderr": ""},
+        )()
+
+    monkeypatch.setattr("project.src.reviewer_modules.subprocess.run", fake_run)
+
+    findings = run_static_analysis(file_path=str(file_path), language="python", analyzer="semgrep")
+
+    assert findings
+    assert findings[0]["rule_id"] == "R001"
+    assert findings[0]["message"] == "unsafe"

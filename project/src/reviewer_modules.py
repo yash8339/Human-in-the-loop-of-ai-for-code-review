@@ -60,6 +60,8 @@ def run_static_analysis(file_path: str, language: str = "python", analyzer: str 
                 [sys.executable, "-m", "bandit", "-r", str(path), "-f", "json"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
             payload = json.loads(result.stdout or "{}")
@@ -82,6 +84,8 @@ def run_static_analysis(file_path: str, language: str = "python", analyzer: str 
             [semgrep_cli, "scan", "--json", str(path)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         payload = json.loads(result.stdout or "{}")
@@ -107,7 +111,7 @@ def run_ai_review(file_path: str, language: str = "python") -> List[Dict[str, An
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
 
-    content = path.read_text(encoding="utf-8")
+    content = path.read_text(encoding="utf-8", errors="replace")
     if language.lower() != "python":
         return []
 
