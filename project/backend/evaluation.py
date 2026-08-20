@@ -1,5 +1,5 @@
 from typing import List
-from .models import ReviewFinding, ReviewResult
+from .utils.schema import ReviewResult
 
 
 def compute_metrics(result: ReviewResult, true_positives: int = 3, false_positives: int = 1) -> ReviewResult:

@@ -1,6 +1,7 @@
-from project.src.review_engine import analyze_code, apply_human_decisions
-from project.src.evaluation import compute_metrics
-from project.src.models import ReviewResult
+from project.backend.review_engine import analyze_code
+from project.backend.human_review.decisions import apply_human_decisions
+from project.backend.evaluation import compute_metrics
+from project.backend.utils.schema import ReviewResult
 
 
 def test_analyze_code_returns_findings():

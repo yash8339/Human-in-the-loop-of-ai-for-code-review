@@ -1,4 +1,4 @@
-from project.src.merge_logic import build_comparison_table, findings_match, normalize_finding
+from project.backend.merge.merger import build_comparison_table, findings_match, normalize_finding
 
 
 def test_normalize_finding_uses_common_schema():

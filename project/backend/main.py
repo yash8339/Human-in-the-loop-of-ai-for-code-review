@@ -6,16 +6,16 @@ from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 
 try:
-    from project.src.evaluation import compute_metrics
-    from project.src.review_engine import analyze_code
+    from project.backend.evaluation import compute_metrics
+    from project.backend.review_engine import analyze_code
 except ModuleNotFoundError:
     import sys
 
-    sys.path.append(os.path.dirname(__file__))
-    from src.evaluation import compute_metrics
-    from src.review_engine import analyze_code
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+    from backend.evaluation import compute_metrics
+    from backend.review_engine import analyze_code
 
-app = Flask(__name__, template_folder="templates")
+app = Flask(__name__, template_folder="../frontend/templates")
 app.secret_key = "human-in-the-loop-demo"
 
 DB_NAME = "code_review"
@@ -202,7 +202,7 @@ def dashboard():
         upload_id = cursor.lastrowid
         conn.commit()
 
-        result = analyze_code(code, language=language, analyzer=analyzer)
+        result = analyze_code(code, language=language, analyzer=analyzer, model=model)
         compute_metrics(result)
         for finding in result.findings:
             cursor.execute(

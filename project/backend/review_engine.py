@@ -2,12 +2,14 @@ import os
 import tempfile
 from typing import List
 
-from .models import ReviewFinding, ReviewResult
-from .merge_logic import build_comparison_table
-from .reviewer_modules import run_ai_review, run_static_analysis
+from .utils.schema import ReviewFinding, ReviewResult
+from .merge.merger import build_comparison_table
+from .ai_review.reviewer import run_ai_review
+from .static_analysis.runner import run_static_analysis
+from .human_review.decisions import apply_human_decisions
 
 
-def analyze_code(code: str, language: str = "python", analyzer: str = "semgrep") -> ReviewResult:
+def analyze_code(code: str, language: str = "python", analyzer: str = "semgrep", model: str = "OpenAI") -> ReviewResult:
     """Analyze code using the independent reviewer modules and return a structured review result."""
     findings: List[ReviewFinding] = []
 
@@ -28,7 +30,7 @@ def analyze_code(code: str, language: str = "python", analyzer: str = "semgrep")
                 )
             )
 
-        ai_findings = run_ai_review(temp_path, language=language)
+        ai_findings = run_ai_review(temp_path, language=language, model=model)
         for finding in ai_findings:
             findings.append(
                 ReviewFinding(
@@ -80,14 +82,3 @@ def analyze_code(code: str, language: str = "python", analyzer: str = "semgrep")
     return result
 
 
-def apply_human_decisions(result: ReviewResult, decisions: dict) -> ReviewResult:
-    """Apply human decisions to review findings."""
-    for finding in result.findings:
-        key = finding.title
-        if key in decisions:
-            finding.accepted = decisions[key] == "accept"
-            if decisions[key] == "reject":
-                finding.accepted = False
-            elif decisions[key] == "modify":
-                finding.accepted = None
-    return result

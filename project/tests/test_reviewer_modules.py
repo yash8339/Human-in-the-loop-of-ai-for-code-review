@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from project.src.reviewer_modules import run_ai_review, run_static_analysis
+from project.backend.ai_review.reviewer import run_ai_review
+from project.backend.static_analysis.runner import run_static_analysis
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -21,6 +22,33 @@ def test_ai_review_returns_structured_findings():
     assert any(finding["issue_type"] == "dynamic-execution" for finding in findings)
 
 
+def test_ai_review_checks_multiple_sample_files_independently():
+    dynamic_findings = run_ai_review(file_path=str(FIXTURES_DIR / "dynamic_code.py"), language="python")
+    unsafe_findings = run_ai_review(file_path=str(FIXTURES_DIR / "unsafe_code.py"), language="python")
+    benign_findings = run_ai_review(file_path=str(FIXTURES_DIR / "benign_code.py"), language="python")
+
+    assert any(finding["issue_type"] == "dynamic-execution" for finding in dynamic_findings)
+    assert any(finding["issue_type"] == "command-execution" for finding in unsafe_findings)
+    assert benign_findings == []
+
+
+def test_ai_review_discards_malformed_llm_findings(monkeypatch, tmp_path):
+    file_path = tmp_path / "sample.py"
+    file_path.write_text("print('hi')\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "project.backend.ai_review.reviewer._request_llm_review",
+        lambda code, language: [
+            {"line": "not-a-line", "issue_type": "bad", "description": "bad", "suggested_fix": "bad"},
+            {"line": 1, "issue_type": "valid", "description": "A finding.", "suggested_fix": "Fix it."},
+        ],
+    )
+
+    assert run_ai_review(file_path=str(file_path), language="python") == [
+        {"line": 1, "issue_type": "valid", "description": "A finding.", "suggested_fix": "Fix it."}
+    ]
+
+
 def test_ai_review_uses_llm_response_when_available(monkeypatch, tmp_path):
     file_path = tmp_path / "sample.py"
     file_path.write_text("import os\nos.system('ls')\n", encoding="utf-8")
@@ -35,7 +63,7 @@ def test_ai_review_uses_llm_response_when_available(monkeypatch, tmp_path):
             }
         ]
 
-    monkeypatch.setattr("project.src.reviewer_modules._request_llm_review", fake_request, raising=False)
+    monkeypatch.setattr("project.backend.ai_review.reviewer._request_llm_review", fake_request, raising=False)
 
     findings = run_ai_review(file_path=str(file_path), language="python")
 
@@ -71,7 +99,7 @@ def test_static_analysis_handles_windows_cp1252_decode_issue(monkeypatch, tmp_pa
             {"stdout": '{"results":[{"extra":{"rule_id":"R001","severity":"high","message":"unsafe"},"start":{"line":1}}]}', "stderr": ""},
         )()
 
-    monkeypatch.setattr("project.src.reviewer_modules.subprocess.run", fake_run)
+    monkeypatch.setattr("project.backend.static_analysis.runner.subprocess.run", fake_run)
 
     findings = run_static_analysis(file_path=str(file_path), language="python", analyzer="semgrep")
 
