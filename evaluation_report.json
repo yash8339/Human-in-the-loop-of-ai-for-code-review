@@ -1,0 +1,138 @@
+{
+  "conditions": {
+    "Human-only": {
+      "bugs_found": 2,
+      "false_positives": 0,
+      "total_suggestions": 2,
+      "review_time": 0.0,
+      "adoption_rate": 0.5,
+      "case_results": [
+        {
+          "bugs_found": 0,
+          "false_positives": 0,
+          "total_suggestions": 0,
+          "review_time": 0.0
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 0.0
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 0.0
+        }
+      ]
+    },
+    "AI-only": {
+      "bugs_found": 2,
+      "false_positives": 1,
+      "total_suggestions": 3,
+      "review_time": 0.000888,
+      "adoption_rate": 0.0,
+      "case_results": [
+        {
+          "bugs_found": 0,
+          "false_positives": 0,
+          "total_suggestions": 0,
+          "review_time": 0.00023
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 0.000423
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 1,
+          "total_suggestions": 2,
+          "review_time": 0.000235
+        }
+      ]
+    },
+    "Static-analysis-only": {
+      "bugs_found": 2,
+      "false_positives": 0,
+      "total_suggestions": 2,
+      "review_time": 30.530023,
+      "adoption_rate": 0.0,
+      "case_results": [
+        {
+          "bugs_found": 0,
+          "false_positives": 0,
+          "total_suggestions": 0,
+          "review_time": 10.630034
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 9.736914
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 10.163075
+        }
+      ]
+    },
+    "Combined": {
+      "bugs_found": 2,
+      "false_positives": 1,
+      "total_suggestions": 3,
+      "review_time": 30.530911,
+      "adoption_rate": 0.0,
+      "case_results": [
+        {
+          "bugs_found": 0,
+          "false_positives": 0,
+          "total_suggestions": 0,
+          "review_time": 10.630264
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 9.737337
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 1,
+          "total_suggestions": 2,
+          "review_time": 10.16331
+        }
+      ]
+    }
+  },
+  "quality_delta": {
+    "size_before": 4.3333,
+    "size_after": 4.3333,
+    "complexity_before": 1.0,
+    "complexity_after": 1.0,
+    "size_delta": 0.0,
+    "complexity_delta": 0.0
+  },
+  "rejection_reasons": {
+    "Incorrect": 0,
+    "Not Needed": 0,
+    "Alternative Fix": 1,
+    "Preference": 0,
+    "Deferred": 0,
+    "Other": 0
+  },
+  "statistical_test": {
+    "available": true,
+    "conditions": [
+      "Human-only",
+      "AI-only"
+    ],
+    "u_statistic": 0.0,
+    "p_value": 0.063603,
+    "significant_at_0_05": false
+  }
+}

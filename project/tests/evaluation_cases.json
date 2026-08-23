@@ -1,0 +1,25 @@
+[
+  {
+    "path": "project/tests/fixtures/benign_code.py",
+    "expected": [],
+    "human_decisions": []
+  },
+  {
+    "path": "project/tests/fixtures/dynamic_code.py",
+    "expected": [
+      {"line": 2, "issue_type": "dynamic-execution"}
+    ],
+    "human_decisions": [
+      {"issue_id": "issue-001", "status": "accept", "reviewer_note": "Confirmed dynamic execution."}
+    ]
+  },
+  {
+    "path": "project/tests/fixtures/unsafe_code.py",
+    "expected": [
+      {"line": 5, "issue_type": "command-execution"}
+    ],
+    "human_decisions": [
+      {"issue_id": "issue-001", "status": "reject", "reviewer_note": "Alternative fix is preferred."}
+    ]
+  }
+]

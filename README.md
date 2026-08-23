@@ -164,6 +164,16 @@ project\.venv\Scripts\python.exe -m pytest project/tests -q
 
 The tests cover static analysis, AI response normalization, all four provider adapters using mocked responses, merge logic, human decisions, and review orchestration.
 
+## Run evaluation
+
+Phase 4 evaluates Human-only, AI-only, Static-analysis-only, and Combined conditions. Ground truth and reviewer decisions are defined in `project/tests/evaluation_cases.json`:
+
+```powershell
+project\.venv\Scripts\python.exe -m project.backend.evaluation_cli project\tests\evaluation_cases.json --output evaluation_report.json
+```
+
+The generated JSON report logs bugs found, false positives, suggestions, review time, adoption rate, rejection reasons, before/after size and complexity deltas, and a Mann-Whitney U result when there are enough observations. Complexity uses `radon` when available; otherwise the built-in AST metric is used.
+
 ## Human review CLI
 
 From the repository root, run the CLI against a Python file:
