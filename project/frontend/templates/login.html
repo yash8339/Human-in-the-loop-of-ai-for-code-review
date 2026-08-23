@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Login | AI Code Review{% endblock %}
-{% block body_class %}login-page{% endblock %}
+{% block body_class %}app-shell{% endblock %}
 
 {% block content %}
 <style>
@@ -10,7 +10,7 @@
     --image-glass: rgba(255, 255, 255, 0.04);
     --image-accent-red: rgba(180, 50, 70, 0.35);
     --image-accent-blue: rgba(100, 150, 255, 0.25);
-    --image-button-gradient: linear-gradient(135deg, #1d0f2f 0%, #30264b 50%, #465f8a 100%);
+    --image-button-gradient: linear-gradient(135deg, #67d8b5 0%, #8ce7ca 100%);
     --image-text-main: #ffffff;
     --image-text-muted: rgba(255, 255, 255, 0.65);
   }
@@ -114,7 +114,7 @@
   }
 
   .login-input:focus {
-    border-bottom-color: #ffffff;
+    border-bottom-color: #67d8b5;
   }
 
   .input-group label.mail-icon::before { content: "✉"; }
@@ -159,7 +159,7 @@
     border: none;
     border-radius: 12px;
     background: var(--image-button-gradient);
-    color: var(--image-text-main);
+    color: #10191b;
     font-size: 15px;
     font-weight: 600;
     text-transform: uppercase;
@@ -172,6 +172,14 @@
   .login-submit-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  }
+
+  body.app-shell .login-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 10px 10px 10px 38px;
+    font-size: 15px;
   }
 </style>
 
