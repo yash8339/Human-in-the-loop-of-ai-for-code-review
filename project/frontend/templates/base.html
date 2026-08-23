@@ -4,31 +4,139 @@
   <meta charset="utf-8">
   <title>{% block title %}AI Code Review{% endblock %}</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: #f2f6fb; color: #1f2937; }
-    .page { max-width: 1024px; margin: 0 auto; padding: 32px; }
-    .card { background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); padding: 24px; margin-bottom: 20px; }
-    h1, h2, h3 { margin-top: 0; color: #111827; }
-    .topnav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .topnav a { color: #2563eb; text-decoration: none; margin-left: 16px; }
-    .hero { background: #eef2ff; padding: 24px; border-radius: 16px; margin-bottom: 24px; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; margin-bottom: 12px; font-size: 16px; }
-    textarea { min-height: 200px; resize: vertical; }
-    button { padding: 12px 20px; background: #2563eb; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; }
-    button:hover { background: #1d4ed8; }
-    .error { color: #b91c1c; margin-bottom: 16px; }
-    .message { color: #047857; margin-bottom: 16px; }
-    .form-grid { display: grid; gap: 24px; grid-template-columns: 1fr; }
-    .home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .home-grid > div { background: #f8fafc; padding: 20px; border-radius: 16px; }
-    .small-text { color: #6b7280; font-size: 14px; }
-    .review-actions button { margin-right: 10px; margin-bottom: 10px; }
-    .link-button { display: inline-block; padding: 10px 16px; background: #f3f4f6; color: #111827; border-radius: 10px; text-decoration: none; }
-    .summary-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); }
-    .summary-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px; }
-    a { color: #2563eb; }
+    :root {
+      --app-bg: #160f22;
+      --app-bg-deep: #080b12;
+      --app-panel: rgba(255, 255, 255, 0.055);
+      --app-panel-strong: rgba(255, 255, 255, 0.085);
+      --app-border: rgba(255, 255, 255, 0.12);
+      --app-accent: #67d8b5;
+      --app-text: #ffffff;
+      --app-muted: rgba(255, 255, 255, 0.65);
+    }
+
+    body.app-shell {
+      min-height: 100vh;
+      margin: 0;
+      font-family: "Trebuchet MS", sans-serif;
+      background: radial-gradient(circle at 78% 10%, rgba(180, 50, 70, 0.22), transparent 30%),
+                  radial-gradient(circle at 12% 36%, rgba(100, 150, 255, 0.16), transparent 34%),
+                  linear-gradient(135deg, var(--app-bg), var(--app-bg-deep) 72%);
+      color: var(--app-text);
+    }
+
+    body.app-shell .page { max-width: 1120px; margin: 0 auto; padding: 28px 32px 64px; }
+    body.app-shell .card {
+      background: var(--app-panel);
+      border: 1px solid var(--app-border);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    body.app-shell h1,
+    body.app-shell h2,
+    body.app-shell h3 { margin-top: 0; color: var(--app-text); }
+    body.app-shell h1 { font-size: clamp(30px, 5vw, 52px); font-weight: 500; letter-spacing: -0.02em; }
+    body.app-shell h2 { font-size: 21px; font-weight: 500; }
+    body.app-shell .topnav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 48px;
+      margin-bottom: 42px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--app-border);
+    }
+    body.app-shell .topnav strong { color: var(--app-accent); font-size: 15px; }
+    body.app-shell .topnav a,
+    body.app-shell a { color: var(--app-accent); text-decoration: none; }
+    body.app-shell .topnav a { color: var(--app-muted); font-size: 13px; margin-left: 22px; }
+    body.app-shell .topnav a:hover,
+    body.app-shell a:hover { color: #8ce7ca; }
+    body.app-shell .hero {
+      background: linear-gradient(125deg, rgba(48, 38, 75, 0.72), rgba(30, 72, 67, 0.42));
+      padding: 40px 42px;
+    }
+    body.app-shell p { color: var(--app-muted); line-height: 1.65; }
+    body.app-shell input,
+    body.app-shell select,
+    body.app-shell textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      margin-bottom: 12px;
+      font-size: 16px;
+      color: var(--app-text);
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--app-border);
+      border-radius: 10px;
+      outline: none;
+    }
+    body.app-shell input:focus,
+    body.app-shell select:focus,
+    body.app-shell textarea:focus { border-color: var(--app-accent); }
+    body.app-shell select option { color: #ffffff; background: #21172b; }
+    body.app-shell textarea { min-height: 240px; font-family: Consolas, "Courier New", monospace; line-height: 1.5; }
+    body.app-shell button {
+      padding: 12px 20px;
+      background: var(--app-accent);
+      color: #10191b;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+      box-shadow: 0 8px 20px rgba(103, 216, 181, 0.18);
+    }
+    body.app-shell button:hover { background: #8ce7ca; transform: translateY(-2px); }
+    body.app-shell .error { color: #ff507a; margin-bottom: 16px; }
+    body.app-shell .message { color: var(--app-accent); margin-bottom: 16px; }
+    body.app-shell .form-grid { display: grid; gap: 24px; grid-template-columns: 1fr; }
+    body.app-shell .home-grid > div,
+    body.app-shell .summary-card {
+      background: var(--app-panel-strong);
+      border: 1px solid var(--app-border);
+      border-radius: 12px;
+    }
+    body.app-shell .home-grid > div { padding: 20px; }
+    body.app-shell .small-text { color: var(--app-muted); font-size: 14px; }
+    body.app-shell .review-actions button { margin-right: 10px; margin-bottom: 10px; }
+    body.app-shell .link-button { display: inline-block; padding: 10px 16px; background: var(--app-panel-strong); color: var(--app-accent); border: 1px solid var(--app-border); border-radius: 10px; text-decoration: none; }
+    body.app-shell .summary-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); }
+    body.app-shell .summary-card { padding: 18px; }
+
+    body.app-shell .hero-title { color: var(--app-text); }
+    body.app-shell .hero-subtitle { color: var(--app-muted); }
+    body.app-shell .gradient-text { background-image: linear-gradient(135deg, #ffffff 0%, var(--app-accent) 100%); }
+    body.app-shell .hero-badge { background: rgba(103, 216, 181, 0.1); color: var(--app-accent); border-color: rgba(103, 216, 181, 0.25); }
+    body.app-shell .pulse-dot { background-color: var(--app-accent); }
+    body.app-shell .section-heading { color: var(--app-text); }
+    body.app-shell .feature-card { background: var(--app-panel); border-color: var(--app-border); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2); }
+    body.app-shell .feature-card h3 { color: var(--app-text); }
+    body.app-shell .feature-card p { color: var(--app-muted); }
+    body.app-shell .stat-number { color: var(--app-accent); }
+    body.app-shell .stat-label { color: var(--app-muted); }
+    body.app-shell .message { background: rgba(103, 216, 181, 0.1); border: 1px solid rgba(103, 216, 181, 0.25); }
+    body.app-shell .error { background: rgba(255, 80, 122, 0.12); border: 1px solid rgba(255, 80, 122, 0.3); }
+    body.app-shell .btn-primary,
+    body.app-shell .btn-success { background: var(--app-accent); color: #10191b; }
+    body.app-shell .btn-outline { background: transparent; color: var(--app-accent); border-color: var(--app-accent); }
+    body.app-shell .stat-card { background: var(--app-panel); border-color: var(--app-border); color: var(--app-text); }
+    body.app-shell .action-panel { background: rgba(48, 38, 75, 0.72); }
+
+    @media (max-width: 640px) {
+      body.app-shell .page { padding: 20px 16px 44px; }
+      body.app-shell .topnav { align-items: flex-start; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+      body.app-shell .topnav a { margin-left: 0; margin-right: 16px; }
+      body.app-shell .card,
+      body.app-shell .hero { padding: 22px; }
+    }
   </style>
 </head>
-<body>
+<body class="{% block body_class %}app-shell{% endblock %}">
   <div class="page">
     <div class="topnav">
       <div>
