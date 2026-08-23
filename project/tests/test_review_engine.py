@@ -30,3 +30,4 @@ def test_compute_metrics_returns_values():
 def test_analyze_code_uses_module_titles_for_structured_findings():
     result = analyze_code("exec('print(1)')", language="python")
     assert any(finding.title == "dynamic-execution" for finding in result.findings)
+    assert all(finding.line > 0 for finding in result.findings)

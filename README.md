@@ -163,3 +163,13 @@ project\.venv\Scripts\python.exe -m pytest project/tests -q
 ```
 
 The tests cover static analysis, AI response normalization, all four provider adapters using mocked responses, merge logic, human decisions, and review orchestration.
+
+## Human review CLI
+
+From the repository root, run the CLI against a Python file:
+
+```powershell
+project\.venv\Scripts\python.exe -m project.backend.human_review.cli_review project\tests\fixtures\unsafe_code.py --output decisions.json
+```
+
+The CLI displays each finding, asks for `accept`, `reject`, or `modify`, and creates `decisions.json` after the review is complete. The web application stores browser decisions in `project/backend/human_review/human_review.sqlite3` and displays the generated report at `/report/<upload_id>`.

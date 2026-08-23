@@ -4,16 +4,23 @@ from datetime import datetime
 
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
-
 try:
     from project.backend.evaluation import compute_metrics
     from project.backend.review_engine import analyze_code
+    from project.backend.human_review.decisions import HumanDecision
+    from project.backend.human_review.report import generate_final_report
+    from project.backend.human_review.storage import load_decisions, save_decision
+    from project.backend.utils.schema import ReviewFinding, ReviewResult
 except ModuleNotFoundError:
     import sys
 
     sys.path.append(os.path.dirname(os.path.dirname(__file__)))
     from backend.evaluation import compute_metrics
     from backend.review_engine import analyze_code
+    from backend.human_review.decisions import HumanDecision
+    from backend.human_review.report import generate_final_report
+    from backend.human_review.storage import load_decisions, save_decision
+    from backend.utils.schema import ReviewFinding, ReviewResult
 
 app = Flask(__name__, template_folder="../frontend/templates")
 app.secret_key = "human-in-the-loop-demo"
@@ -260,12 +267,18 @@ def submit_decision(upload_id):
         return redirect_result
 
     review_id = request.form.get("review_id")
-    decision = request.form.get("decision", "accept")
+    decision = request.form.get("decision", "accept").strip().lower()
+    reviewer_note = request.form.get("reviewer_note", "").strip()
+    try:
+        human_decision = HumanDecision(f"issue-{int(review_id):03d}", decision, reviewer_note)
+    except (TypeError, ValueError):
+        return redirect(url_for("review_page", upload_id=upload_id))
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM reviews WHERE id = %s", (review_id,))
     review = cursor.fetchone()
     if review:
+        save_decision(upload_id, human_decision)
         cursor.execute(
             "INSERT INTO human_reviews (review_id, decision, reviewer_name) VALUES (%s, %s, %s)",
             (review_id, decision, session.get("user_name", "Reviewer")),
@@ -294,14 +307,29 @@ def report_page(upload_id):
     )
     human_reviews = cursor.fetchall()
     cursor.execute("SELECT * FROM reports WHERE upload_id = %s", (upload_id,))
-    report = cursor.fetchone()
+    stored_report = cursor.fetchone()
     cursor.close()
     conn.close()
 
     if not upload:
         return redirect(url_for("dashboard"))
 
-    return render_template("report.html", upload=upload, reviews=reviews, human_reviews=human_reviews, report=report)
+    findings = [
+        ReviewFinding(
+            issue_id=f"issue-{review['id']:03d}",
+            title=review["title"],
+            description=review["description"],
+            severity="critical" if review["severity"].lower() in {"critical", "high"} else review["severity"],
+            confidence=review["confidence"],
+            source=review["source"],
+            line=review.get("line", 0) or 0,
+        )
+        for review in reviews
+    ]
+    generated_report = generate_final_report(ReviewResult(findings=findings), load_decisions(upload_id))
+    if stored_report:
+        generated_report.update({"precision_score": stored_report["precision_score"], "recall": stored_report["recall"], "false_positive_rate": stored_report["false_positive_rate"]})
+    return render_template("report.html", upload=upload, reviews=reviews, human_reviews=human_reviews, report=generated_report)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@
 <div class="summary-grid">
   <div class="summary-card">
     <h2>Accuracy</h2>
-    <p>{{ report.accuracy }}</p>
+    <p>{{ report.accuracy }}%</p>
   </div>
   <div class="summary-card">
     <h2>Precision</h2>
@@ -29,15 +29,31 @@
   </div>
 </div>
 <div class="card">
-  <h2>Human Decisions</h2>
-  {% if human_reviews %}
+  <h2>Critical Issues</h2>
+  {% if report.critical %}
     <ul>
-      {% for item in human_reviews %}
-        <li><strong>{{ item.title }}:</strong> {{ item.decision }}</li>
+      {% for item in report.critical %}
+        <li><strong>Issue {{ item.issue_id }} · Line {{ item.line }}:</strong> {{ item.description }} ({{ item.decision }}){% if item.reviewer_note %} - {{ item.reviewer_note }}{% endif %}</li>
       {% endfor %}
     </ul>
   {% else %}
-    <p>No human decisions recorded yet.</p>
+    <p>No critical issues.</p>
   {% endif %}
+  <h2>Medium Issues</h2>
+  {% if report.medium %}
+    <ul>
+      {% for item in report.medium %}
+        <li><strong>Issue {{ item.issue_id }} · Line {{ item.line }}:</strong> {{ item.description }} ({{ item.decision }}){% if item.reviewer_note %} - {{ item.reviewer_note }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No medium issues.</p>
+  {% endif %}
+</div>
+<div class="card">
+  <h2>Accepted Suggestions</h2>
+  {% if report.accepted_suggestions %}
+    <ul>{% for suggestion in report.accepted_suggestions %}<li>{{ suggestion }}</li>{% endfor %}</ul>
+  {% else %}<p>No suggestions accepted yet.</p>{% endif %}
 </div>
 {% endblock %}

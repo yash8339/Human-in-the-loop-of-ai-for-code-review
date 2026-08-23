@@ -12,9 +12,10 @@
       <div class="card">
         <h3>{{ review.title }}</h3>
         <p>{{ review.description }}</p>
-        <p class="small-text">Severity: {{ review.severity }} · Confidence: {{ review.confidence }} · Source: {{ review.source }}</p>
+        <p class="small-text">Issue {{ review.id }} · Severity: {{ review.severity }} · Confidence: {{ review.confidence }} · Source: {{ review.source }}</p>
         <form method="post" action="/review/{{ upload.id }}/decision" class="review-actions">
           <input type="hidden" name="review_id" value="{{ review.id }}">
+          <label>Reviewer note <input type="text" name="reviewer_note" maxlength="1000"></label>
           <button type="submit" name="decision" value="accept">Accept</button>
           <button type="submit" name="decision" value="reject">Reject</button>
           <button type="submit" name="decision" value="modify">Modify</button>

@@ -27,6 +27,8 @@ def analyze_code(code: str, language: str = "python", analyzer: str = "semgrep",
                     severity=finding.get("severity", "medium"),
                     confidence=0.9,
                     source="static",
+                    issue_id=f"issue-{len(findings) + 1:03d}",
+                    line=int(finding.get("line", 0) or 0),
                 )
             )
 
@@ -39,6 +41,9 @@ def analyze_code(code: str, language: str = "python", analyzer: str = "semgrep",
                     severity="medium",
                     confidence=0.8,
                     source="ai",
+                    issue_id=f"issue-{len(findings) + 1:03d}",
+                    line=int(finding.get("line", 0) or 0),
+                    suggested_fix=finding.get("suggested_fix", ""),
                 )
             )
     finally:
@@ -53,18 +58,19 @@ def analyze_code(code: str, language: str = "python", analyzer: str = "semgrep",
                 severity="low",
                 confidence=0.55,
                 source="ai",
+                issue_id="issue-001",
             )
         )
 
     comparison_table = build_comparison_table(
         {
             "chatgpt": [
-                {"line": finding.line if hasattr(finding, "line") else 0, "issue_type": finding.title, "description": finding.description}
+                {"line": finding.line, "issue_type": finding.title, "description": finding.description}
                 for finding in findings
                 if finding.source == "ai"
             ],
             "semgrep": [
-                {"line": finding.line if hasattr(finding, "line") else 0, "rule_id": finding.title, "message": finding.description}
+                {"line": finding.line, "rule_id": finding.title, "message": finding.description}
                 for finding in findings
                 if finding.source == "static"
             ],

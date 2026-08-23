@@ -10,6 +10,9 @@ class ReviewFinding:
     confidence: float
     source: str
     accepted: Optional[bool] = None
+    issue_id: str = ""
+    line: int = 0
+    suggested_fix: str = ""
 
 
 @dataclass

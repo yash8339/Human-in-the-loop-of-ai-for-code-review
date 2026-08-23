@@ -12,6 +12,8 @@ def test_normalize_finding_uses_common_schema():
     normalized = normalize_finding(finding, source="ai")
 
     assert normalized["tool"] == "ai"
+    assert normalized["source_tool"] == "ai"
+    assert normalized["category"] == "dynamic-execution"
     assert normalized["title"] == "dynamic-execution"
     assert normalized["line"] == 4
     assert normalized["description"] == "Dynamic execution can be risky."
@@ -38,6 +40,19 @@ def test_findings_match_detects_same_issue_across_tools():
     )
 
     assert findings_match(semgrep_finding, ai_finding)
+
+
+def test_findings_match_rejects_different_lines():
+    first = normalize_finding(
+        {"line": 7, "issue_type": "command-execution", "description": "shell command"},
+        source="chatgpt",
+    )
+    second = normalize_finding(
+        {"line": 10, "rule_id": "command-execution", "message": "shell command"},
+        source="bandit",
+    )
+
+    assert not findings_match(first, second)
 
 
 def test_build_comparison_table_returns_tool_columns():

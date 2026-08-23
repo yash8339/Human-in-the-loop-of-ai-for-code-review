@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 def normalize_finding(finding: Dict[str, Any], source: str = "unknown") -> Dict[str, Any]:
     """Convert a tool-specific finding into a common schema."""
-    title = (
+    category = (
         finding.get("title")
         or finding.get("rule_id")
         or finding.get("issue_type")
@@ -17,15 +17,18 @@ def normalize_finding(finding: Dict[str, Any], source: str = "unknown") -> Dict[
         or finding.get("message")
         or "No description provided."
     )
-    line = finding.get("line") or 0
+    line = finding.get("line") or finding.get("line_number") or 0
     severity = finding.get("severity") or "medium"
+    source_tool = (source or "unknown").strip().lower() or "unknown"
     return {
-        "tool": source.lower(),
-        "title": str(title),
+        "source_tool": source_tool,
+        "category": str(category),
         "line": int(line),
         "description": str(description),
         "severity": str(severity).lower(),
         "raw": finding,
+        "tool": source_tool,
+        "title": str(category),
     }
 
 
@@ -49,11 +52,13 @@ def _canonicalize_tokens(tokens: set[str]) -> set[str]:
 
 def findings_match(left: Dict[str, Any], right: Dict[str, Any], *, threshold: float = 0.4) -> bool:
     """Return True when two normalized findings likely refer to the same issue."""
-    if left.get("line") and right.get("line") and abs(int(left["line"]) - int(right["line"])) > 3:
+    left_line = int(left.get("line") or 0)
+    right_line = int(right.get("line") or 0)
+    if left_line and right_line and left_line != right_line:
         return False
 
-    left_tokens = _canonicalize_tokens(_tokenize(str(left.get("title", "")) + " " + str(left.get("description", ""))))
-    right_tokens = _canonicalize_tokens(_tokenize(str(right.get("title", "")) + " " + str(right.get("description", ""))))
+    left_tokens = _canonicalize_tokens(_tokenize(str(left.get("category", left.get("title", ""))) + " " + str(left.get("description", ""))))
+    right_tokens = _canonicalize_tokens(_tokenize(str(right.get("category", right.get("title", ""))) + " " + str(right.get("description", ""))))
     if not left_tokens or not right_tokens:
         return left.get("title") == right.get("title")
 
@@ -82,7 +87,9 @@ def build_comparison_table(findings_by_source: Dict[str, List[Dict[str, Any]]]) 
                 break
         if not matched:
             row_payload = {
-                "issue": row["title"],
+                "issue": row["category"],
+                "line": row["line"],
+                "category": row["category"],
                 "base": row,
                 "chatgpt": "",
                 "semgrep": "",
