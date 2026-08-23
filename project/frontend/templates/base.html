@@ -144,7 +144,7 @@
       </div>
       <div>
         <a href="/">Home</a>
-        {% if session.user_id %}
+        {% if session.user_id and request.path != "/" %}
           <a href="/dashboard">Dashboard</a>
           <a href="/logout">Logout</a>
         {% else %}
