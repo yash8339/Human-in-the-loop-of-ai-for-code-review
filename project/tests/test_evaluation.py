@@ -53,4 +53,40 @@ def test_evaluation_runs_all_conditions_and_logs_each_case(monkeypatch, tmp_path
     assert report["conditions"]["Combined"]["case_results"][0]["bugs_found"] == 1
     assert report["conditions"]["AI-only"]["false_positives"] == 0
     assert report["conditions"]["Human-only"]["adoption_rate"] == 1.0
+    assert report["conditions"]["Human-only"]["review_time"] == 0.0
     assert report["rejection_reasons"]["Other"] == 0
+
+
+def test_evaluation_supports_condition_adoption_time_and_quality(monkeypatch, tmp_path):
+    source = tmp_path / "before.py"
+    fixed = tmp_path / "after.py"
+    source.write_text("def f(value):\n    if value:\n        return value\n    return 0\n", encoding="utf-8")
+    fixed.write_text("def f(value):\n    return value\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "project.backend.evaluation_runner.run_ai_review",
+        lambda path, model="OpenAI": [{"line": 1, "issue_type": "issue-a", "description": "a", "suggested_fix": "fix"}],
+    )
+    monkeypatch.setattr(
+        "project.backend.evaluation_runner.run_static_analysis",
+        lambda path, analyzer="semgrep": [{"line": 1, "rule_id": "issue-a", "message": "a", "severity": "high"}],
+    )
+
+    report = evaluate_test_set([EvaluationCase(
+        str(source), fixed_path=str(fixed), human_review_time=2.5,
+        expected=[{"line": 1, "issue_type": "issue-a"}, {"line": 2, "issue_type": "issue-b"}],
+        decisions_by_condition={
+            "Human-only": [{"status": "accept"}, {"status": "reject"}],
+            "AI-only": [{"status": "accept"}],
+            "Static-analysis-only": [{"status": "reject"}],
+            "Combined": [{"status": "accept"}],
+        },
+    )])
+
+    assert report["conditions"]["Human-only"]["review_time"] == 2.5
+    assert report["conditions"]["Human-only"]["adoption_rate"] == 0.5
+    assert report["conditions"]["AI-only"]["adoption_rate"] == 1.0
+    assert report["conditions"]["Static-analysis-only"]["adoption_rate"] == 0.0
+    assert report["conditions"]["Combined"]["adoption_rate"] == 1.0
+    assert report["quality_delta"]["size_delta"] < 0
+    assert report["quality_delta"]["complexity_delta"] < 0

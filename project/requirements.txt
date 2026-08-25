@@ -9,3 +9,5 @@ jupyter
 pytest
 bandit
 semgrep
+radon
+lizard

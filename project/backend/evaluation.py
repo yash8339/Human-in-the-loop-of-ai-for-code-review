@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+from itertools import combinations
 from pathlib import Path
 from typing import Any, Iterable
 from .utils.schema import ReviewResult
@@ -47,22 +48,40 @@ def quality_metrics(source_path: str | Path, fixed_path: str | Path | None = Non
 
 
 def mann_whitney_u(samples: dict[str, Iterable[float]]) -> dict[str, Any]:
-    """Run a two-sided test only when two conditions have enough observations."""
+    """Run two-sided pairwise tests for every condition with enough observations."""
     values = {name: list(numbers) for name, numbers in samples.items()}
-    if len(values) < 2 or any(len(numbers) < 2 for numbers in values.values()):
-        return {"available": False, "reason": "At least two observations per condition are required."}
     try:
         from scipy.stats import mannwhitneyu
     except ImportError:
         return {"available": False, "reason": "scipy is not installed."}
-    names = list(values)
-    statistic, p_value = mannwhitneyu(values[names[0]], values[names[1]], alternative="two-sided")
-    return {"available": True, "conditions": names[:2], "u_statistic": round(float(statistic), 4),
-            "p_value": round(float(p_value), 6), "significant_at_0_05": bool(p_value < 0.05)}
+    comparisons = {}
+    for left_name, right_name in combinations(values, 2):
+        left, right = values[left_name], values[right_name]
+        if len(left) < 2 or len(right) < 2:
+            continue
+        statistic, p_value = mannwhitneyu(left, right, alternative="two-sided")
+        comparisons[f"{left_name} vs {right_name}"] = {
+            "conditions": [left_name, right_name],
+            "u_statistic": round(float(statistic), 4),
+            "p_value": round(float(p_value), 6),
+            "significant_at_0_05": bool(p_value < 0.05),
+        }
+    if not comparisons:
+        return {"available": False, "reason": "At least two observations per compared condition are required.", "comparisons": {}}
+    return {"available": True, "comparisons": comparisons}
 
 
 def _measure_file(path: Path) -> dict[str, float]:
     source = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        import lizard
+        from radon.complexity import cc_visit
+
+        lizard_result = lizard.analyze_file(str(path))
+        complexity = sum(block.complexity for block in cc_visit(source))
+        return {"size": float(lizard_result.nloc), "complexity": float(complexity)}
+    except (ImportError, OSError, AttributeError, SyntaxError):
+        pass
     try:
         tree = ast.parse(source)
     except SyntaxError:

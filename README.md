@@ -172,7 +172,7 @@ Phase 4 evaluates Human-only, AI-only, Static-analysis-only, and Combined condit
 project\.venv\Scripts\python.exe -m project.backend.evaluation_cli project\tests\evaluation_cases.json --output evaluation_report.json
 ```
 
-The generated JSON report logs bugs found, false positives, suggestions, review time, adoption rate, rejection reasons, before/after size and complexity deltas, and a Mann-Whitney U result when there are enough observations. Complexity uses `radon` when available; otherwise the built-in AST metric is used.
+The generated JSON report logs bugs found, false positives, suggestions, review time, adoption rate, rejection reasons, before/after size and complexity deltas, and pairwise Mann-Whitney U results when there are enough observations. Add `human_review_time` and `decisions_by_condition` to a case to record human timing and accepted suggestions for each condition. Complexity uses `radon` and size uses `lizard`; the built-in AST metric remains a fallback when those packages are unavailable.
 
 ## Human review CLI
 

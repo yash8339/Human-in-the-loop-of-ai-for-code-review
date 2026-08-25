@@ -33,11 +33,8 @@ def run_static_analysis(file_path: str, language: str = "python", analyzer: str 
                 for issue in payload.get("results", [])
             ]
 
-        semgrep_cli = Path(sys.executable).parent / "Scripts" / "semgrep.exe"
-        if not semgrep_cli.exists():
-            semgrep_cli = Path(sys.executable).parent / "semgrep.exe"
         result = subprocess.run(
-            [str(semgrep_cli), "scan", "--json", str(path)],
+            [sys.executable, "-m", "semgrep", "scan", "--json", str(path)],
             capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         payload = json.loads(result.stdout or "{}")
@@ -48,5 +45,5 @@ def run_static_analysis(file_path: str, language: str = "python", analyzer: str 
              "message": issue.get("extra", {}).get("message") or "Semgrep finding"}
             for issue in payload.get("results", [])
         ]
-    except (json.JSONDecodeError, ValueError, FileNotFoundError):
+    except (json.JSONDecodeError, ValueError, FileNotFoundError, OSError):
         return []

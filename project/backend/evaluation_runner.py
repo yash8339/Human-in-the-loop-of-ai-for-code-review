@@ -18,6 +18,8 @@ class EvaluationCase:
     expected: list[dict[str, Any]] = field(default_factory=list)
     fixed_path: str | None = None
     human_decisions: list[dict[str, str]] = field(default_factory=list)
+    decisions_by_condition: dict[str, list[dict[str, str]]] = field(default_factory=dict)
+    human_review_time: float = 0.0
 
 
 def evaluate_test_set(cases: list[EvaluationCase], analyzer: str = "semgrep", model: str = "OpenAI") -> dict[str, Any]:
@@ -30,7 +32,7 @@ def evaluate_test_set(cases: list[EvaluationCase], analyzer: str = "semgrep", mo
         combined = build_comparison_table({"chatgpt": ai["findings"], analyzer: static["findings"]})
         combined_findings = [{"line": row.get("line", 0), "title": row.get("category", row.get("issue", ""))} for row in combined]
         conditions = {
-            "Human-only": (case.expected, 0.0), "AI-only": (ai["findings"], ai["seconds"]),
+            "Human-only": (case.expected, case.human_review_time), "AI-only": (ai["findings"], ai["seconds"]),
             "Static-analysis-only": (static["findings"], static["seconds"]),
             "Combined": (combined_findings, ai["seconds"] + static["seconds"]),
         }
@@ -41,7 +43,7 @@ def evaluate_test_set(cases: list[EvaluationCase], analyzer: str = "semgrep", mo
     summary = {name: _summarize(results) for name, results in condition_results.items()}
     for name, results in condition_results.items():
         summary[name]["case_results"] = results
-    summary["Human-only"]["adoption_rate"] = _human_adoption(cases)
+        summary[name]["adoption_rate"] = _condition_adoption(cases, name, summary[name]["total_suggestions"])
     return {"conditions": summary, "quality_delta": _average_quality(quality),
             "rejection_reasons": _rejection_summary(cases),
             "statistical_test": mann_whitney_u({name: [row["review_time"] for row in rows] for name, rows in condition_results.items()})}
@@ -75,9 +77,15 @@ def _summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
     return {key: sum(row[key] for row in results) for key in ("bugs_found", "false_positives", "total_suggestions")} | {"review_time": round(sum(row["review_time"] for row in results), 6), "adoption_rate": 0.0}
 
 
-def _human_adoption(cases: list[EvaluationCase]) -> float:
-    decisions = [decision for case in cases for decision in case.human_decisions]
-    return round(sum(decision.get("status") == "accept" for decision in decisions) / len(decisions), 4) if decisions else 0.0
+def _condition_adoption(cases: list[EvaluationCase], condition: str, total_suggestions: int) -> float:
+    decisions = [decision for case in cases for decision in _decisions_for(case, condition)]
+    return round(sum(decision.get("status") == "accept" for decision in decisions) / total_suggestions, 4) if total_suggestions else 0.0
+
+
+def _decisions_for(case: EvaluationCase, condition: str) -> list[dict[str, str]]:
+    if condition in case.decisions_by_condition:
+        return case.decisions_by_condition[condition]
+    return case.human_decisions if condition == "Human-only" else []
 
 
 def _rejection_summary(cases: list[EvaluationCase]) -> dict[str, int]:

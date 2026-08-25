@@ -1,0 +1,187 @@
+{
+  "conditions": {
+    "Human-only": {
+      "bugs_found": 2,
+      "false_positives": 0,
+      "total_suggestions": 2,
+      "review_time": 12.4,
+      "adoption_rate": 0.5,
+      "case_results": [
+        {
+          "bugs_found": 0,
+          "false_positives": 0,
+          "total_suggestions": 0,
+          "review_time": 0.0
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 12.4
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 0.0
+        }
+      ]
+    },
+    "AI-only": {
+      "bugs_found": 2,
+      "false_positives": 1,
+      "total_suggestions": 3,
+      "review_time": 0.001634,
+      "adoption_rate": 0.3333,
+      "case_results": [
+        {
+          "bugs_found": 0,
+          "false_positives": 0,
+          "total_suggestions": 0,
+          "review_time": 0.00028
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 0.000453
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 1,
+          "total_suggestions": 2,
+          "review_time": 0.000901
+        }
+      ]
+    },
+    "Static-analysis-only": {
+      "bugs_found": 2,
+      "false_positives": 1,
+      "total_suggestions": 3,
+      "review_time": 1.409367,
+      "adoption_rate": 0.3333,
+      "case_results": [
+        {
+          "bugs_found": 0,
+          "false_positives": 0,
+          "total_suggestions": 0,
+          "review_time": 0.488845
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 0.447048
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 1,
+          "total_suggestions": 2,
+          "review_time": 0.473474
+        }
+      ]
+    },
+    "Combined": {
+      "bugs_found": 2,
+      "false_positives": 1,
+      "total_suggestions": 3,
+      "review_time": 1.411001,
+      "adoption_rate": 0.3333,
+      "case_results": [
+        {
+          "bugs_found": 0,
+          "false_positives": 0,
+          "total_suggestions": 0,
+          "review_time": 0.489125
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 0,
+          "total_suggestions": 1,
+          "review_time": 0.447501
+        },
+        {
+          "bugs_found": 1,
+          "false_positives": 1,
+          "total_suggestions": 2,
+          "review_time": 0.474375
+        }
+      ]
+    }
+  },
+  "quality_delta": {
+    "size_before": 3.3333,
+    "size_after": 3.0,
+    "complexity_before": 1.0,
+    "complexity_after": 0.6667,
+    "size_delta": -0.3333,
+    "complexity_delta": -0.3333
+  },
+  "rejection_reasons": {
+    "Incorrect": 0,
+    "Not Needed": 0,
+    "Alternative Fix": 1,
+    "Preference": 0,
+    "Deferred": 0,
+    "Other": 0
+  },
+  "statistical_test": {
+    "available": true,
+    "comparisons": {
+      "Human-only vs AI-only": {
+        "conditions": [
+          "Human-only",
+          "AI-only"
+        ],
+        "u_statistic": 3.0,
+        "p_value": 0.657905,
+        "significant_at_0_05": false
+      },
+      "Human-only vs Static-analysis-only": {
+        "conditions": [
+          "Human-only",
+          "Static-analysis-only"
+        ],
+        "u_statistic": 3.0,
+        "p_value": 0.657905,
+        "significant_at_0_05": false
+      },
+      "Human-only vs Combined": {
+        "conditions": [
+          "Human-only",
+          "Combined"
+        ],
+        "u_statistic": 3.0,
+        "p_value": 0.657905,
+        "significant_at_0_05": false
+      },
+      "AI-only vs Static-analysis-only": {
+        "conditions": [
+          "AI-only",
+          "Static-analysis-only"
+        ],
+        "u_statistic": 0.0,
+        "p_value": 0.1,
+        "significant_at_0_05": false
+      },
+      "AI-only vs Combined": {
+        "conditions": [
+          "AI-only",
+          "Combined"
+        ],
+        "u_statistic": 0.0,
+        "p_value": 0.1,
+        "significant_at_0_05": false
+      },
+      "Static-analysis-only vs Combined": {
+        "conditions": [
+          "Static-analysis-only",
+          "Combined"
+        ],
+        "u_statistic": 3.0,
+        "p_value": 0.7,
+        "significant_at_0_05": false
+      }
+    }
+  }
+}

@@ -6,12 +6,25 @@
   },
   {
     "path": "project/tests/fixtures/dynamic_code.py",
+    "fixed_path": "project/tests/fixtures/dynamic_code_fixed.py",
+    "human_review_time": 12.4,
     "expected": [
       {"line": 2, "issue_type": "dynamic-execution"}
     ],
     "human_decisions": [
       {"issue_id": "issue-001", "status": "accept", "reviewer_note": "Confirmed dynamic execution."}
-    ]
+    ],
+    "decisions_by_condition": {
+      "AI-only": [
+        {"issue_id": "issue-001", "status": "accept", "reviewer_note": "Confirmed dynamic execution."}
+      ],
+      "Static-analysis-only": [
+        {"issue_id": "issue-001", "status": "accept", "reviewer_note": "Confirmed dynamic execution."}
+      ],
+      "Combined": [
+        {"issue_id": "issue-001", "status": "accept", "reviewer_note": "Confirmed dynamic execution."}
+      ]
+    }
   },
   {
     "path": "project/tests/fixtures/unsafe_code.py",
