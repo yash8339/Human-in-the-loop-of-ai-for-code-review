@@ -1,4 +1,6 @@
+import json
 import os
+from pathlib import Path
 import pymysql
 from datetime import datetime
 
@@ -35,6 +37,36 @@ DB_CONFIG_BASE = {
     "autocommit": False,
 }
 DB_CONFIG = {**DB_CONFIG_BASE, "database": DB_NAME}
+SUBMISSION_LOG_PATH = Path(__file__).resolve().parents[2] / "submission_log.json"
+
+
+def log_submission(upload_id: int, code: str, language: str, model: str, analyzer: str, filename: str, submitted_at: str) -> None:
+    """Append the submitted code and its submission metadata to a JSON log."""
+    if SUBMISSION_LOG_PATH.exists():
+        try:
+            submissions = json.loads(SUBMISSION_LOG_PATH.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            submissions = []
+    else:
+        submissions = []
+
+    if not isinstance(submissions, list):
+        submissions = []
+
+    submissions.append(
+        {
+            "upload_id": upload_id,
+            "user_id": session.get("user_id"),
+            "user_name": session.get("user_name"),
+            "submitted_at": submitted_at,
+            "filename": filename,
+            "language": language,
+            "model": model,
+            "analyzer": analyzer,
+            "code": code,
+        }
+    )
+    SUBMISSION_LOG_PATH.write_text(json.dumps(submissions, indent=2), encoding="utf-8")
 
 
 def init_db():
@@ -208,6 +240,7 @@ def dashboard():
         )
         upload_id = cursor.lastrowid
         conn.commit()
+        log_submission(upload_id, code, language, model, analyzer, filename, uploaded_at)
 
         result = analyze_code(code, language=language, analyzer=analyzer, model=model)
         compute_metrics(result)
