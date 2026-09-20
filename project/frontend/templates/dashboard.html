@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dashboard | AI Code Review{% endblock %}
+{% block body_class %}app-shell dashboard-page{% endblock %}
 {% block content %}
 <style>
   :root {
@@ -37,6 +38,10 @@
     font-size: 13px;
     margin-left: 22px;
     transition: color 0.2s ease;
+  }
+
+  body.dashboard-page .topnav a[href="/"] {
+    display: none;
   }
 
   .topnav a:hover,

@@ -31,7 +31,7 @@ DB_NAME = "code_review"
 DB_CONFIG_BASE = {
     "host": "127.0.0.1",
     "user": "root",
-    "password": "Meshva@1",
+    "password": "",
     "charset": "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor,
     "autocommit": False,
