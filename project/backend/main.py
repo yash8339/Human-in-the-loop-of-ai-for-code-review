@@ -85,6 +85,8 @@ def init_db():
             id INT PRIMARY KEY AUTO_INCREMENT,
             name VARCHAR(255) NOT NULL,
             email VARCHAR(255) UNIQUE NOT NULL,
+            education VARCHAR(255) NOT NULL DEFAULT '',
+            phone_number VARCHAR(50) NOT NULL DEFAULT '',
             password VARCHAR(255) NOT NULL
         )
         """,
@@ -110,6 +112,7 @@ def init_db():
             severity VARCHAR(50) NOT NULL,
             confidence DOUBLE NOT NULL,
             source VARCHAR(100) NOT NULL,
+            line INT NOT NULL DEFAULT 0,
             FOREIGN KEY(upload_id) REFERENCES uploads(id)
         )
         """,
@@ -140,6 +143,15 @@ def init_db():
     for statement in statements:
         cursor.execute(statement)
 
+    for table, column, definition in (
+        ("users", "education", "VARCHAR(255) NOT NULL DEFAULT ''"),
+        ("users", "phone_number", "VARCHAR(50) NOT NULL DEFAULT ''"),
+        ("reviews", "line", "INT NOT NULL DEFAULT 0"),
+    ):
+        cursor.execute(f"SHOW COLUMNS FROM {table} LIKE %s", (column,))
+        if cursor.fetchone() is None:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
     conn.commit()
     cursor.close()
     conn.close()
@@ -155,6 +167,41 @@ def require_login():
     return None
 
 
+@app.context_processor
+def inject_current_user():
+    return {"current_user": session.get("profile", {})}
+
+
+def _create_upload_review(code: str, language: str, model: str, analyzer: str, filename: str) -> int:
+    uploaded_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO uploads (user_id, language, model, analyzer, filename, content, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (session["user_id"], language, model, analyzer, filename, code, uploaded_at),
+    )
+    upload_id = cursor.lastrowid
+    conn.commit()
+    log_submission(upload_id, code, language, model, analyzer, filename, uploaded_at)
+
+    result = analyze_code(code, language=language, analyzer=analyzer, model=model)
+    compute_metrics(result)
+    for finding in result.findings:
+        cursor.execute(
+            "INSERT INTO reviews (upload_id, title, description, severity, confidence, source, line) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (upload_id, finding.title, finding.description, finding.severity, finding.confidence, finding.source, finding.line),
+        )
+    conn.commit()
+    cursor.execute(
+        "INSERT INTO reports (upload_id, accuracy, precision_score, recall, false_positive_rate, review_time, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (upload_id, result.accuracy, result.precision, result.recall, result.false_positive_rate, result.review_time, uploaded_at),
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return upload_id
+
+
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -165,8 +212,10 @@ def register():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip()
+        education = request.form.get("education", "").strip()
+        phone_number = request.form.get("phone_number", "").strip()
         password = request.form.get("password", "").strip()
-        if not name or not email or not password:
+        if not name or not email or not education or not phone_number or not password:
             return render_template("register.html", error="Please fill in all fields")
 
         conn = get_db()
@@ -179,8 +228,8 @@ def register():
             return render_template("register.html", error="Email already registered")
 
         cursor.execute(
-            "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)",
-            (name, email, generate_password_hash(password)),
+            "INSERT INTO users (name, email, education, phone_number, password) VALUES (%s, %s, %s, %s, %s)",
+            (name, email, education, phone_number, generate_password_hash(password)),
         )
         conn.commit()
         cursor.close()
@@ -205,6 +254,12 @@ def login():
         if user and check_password_hash(user["password"], password):
             session["user_id"] = user["id"]
             session["user_name"] = user["name"]
+            session["profile"] = {
+                "name": user.get("name", ""),
+                "email": user.get("email", ""),
+                "education": user.get("education", ""),
+                "phone_number": user.get("phone_number", ""),
+            }
             return redirect(url_for("dashboard"))
 
         return render_template("login.html", error="Invalid email or password")
@@ -216,6 +271,52 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("home"))
+
+
+@app.route("/profile", methods=["GET", "POST"])
+def profile():
+    redirect_result = require_login()
+    if redirect_result is not None:
+        return redirect_result
+
+    conn = get_db()
+    cursor = conn.cursor()
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        education = request.form.get("education", "").strip()
+        phone_number = request.form.get("phone_number", "").strip()
+        if name and email and education and phone_number:
+            cursor.execute(
+                "UPDATE users SET name = %s, email = %s, education = %s, phone_number = %s WHERE id = %s",
+                (name, email, education, phone_number, session["user_id"]),
+            )
+            conn.commit()
+            session["user_name"] = name
+            session["profile"] = {"name": name, "email": email, "education": education, "phone_number": phone_number}
+            message = "Profile updated successfully."
+        else:
+            message = "Please fill in all profile fields."
+    cursor.execute("SELECT id, name, email, education, phone_number FROM users WHERE id = %s", (session["user_id"],))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return render_template("profile.html", user=user, message=message if request.method == "POST" else None)
+
+
+@app.route("/history")
+def history():
+    redirect_result = require_login()
+    if redirect_result is not None:
+        return redirect_result
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM uploads WHERE user_id = %s ORDER BY id DESC", (session["user_id"],))
+    uploads = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return render_template("history.html", uploads=uploads)
 
 
 @app.route("/dashboard", methods=["GET", "POST"])
@@ -230,34 +331,7 @@ def dashboard():
         model = request.form.get("model", "ChatGPT")
         analyzer = request.form.get("analyzer", "Semgrep")
         filename = request.form.get("filename", "review.py")
-        uploaded_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO uploads (user_id, language, model, analyzer, filename, content, uploaded_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (session["user_id"], language, model, analyzer, filename, code, uploaded_at),
-        )
-        upload_id = cursor.lastrowid
-        conn.commit()
-        log_submission(upload_id, code, language, model, analyzer, filename, uploaded_at)
-
-        result = analyze_code(code, language=language, analyzer=analyzer, model=model)
-        compute_metrics(result)
-        for finding in result.findings:
-            cursor.execute(
-                "INSERT INTO reviews (upload_id, title, description, severity, confidence, source) VALUES (%s, %s, %s, %s, %s, %s)",
-                (upload_id, finding.title, finding.description, finding.severity, finding.confidence, finding.source),
-            )
-        conn.commit()
-
-        cursor.execute(
-            "INSERT INTO reports (upload_id, accuracy, precision_score, recall, false_positive_rate, review_time, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (upload_id, result.accuracy, result.precision, result.recall, result.false_positive_rate, result.review_time, uploaded_at),
-        )
-        conn.commit()
-        conn.close()
-
+        upload_id = _create_upload_review(code, language, model, analyzer, filename)
         return redirect(url_for("review_page", upload_id=upload_id))
 
     conn = get_db()
@@ -270,6 +344,35 @@ def dashboard():
     cursor.close()
     conn.close()
     return render_template("dashboard.html", uploads=uploads)
+
+
+@app.route("/review/<int:upload_id>/edit", methods=["GET", "POST"])
+def edit_review(upload_id):
+    redirect_result = require_login()
+    if redirect_result is not None:
+        return redirect_result
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM uploads WHERE id = %s AND user_id = %s", (upload_id, session["user_id"]))
+    upload = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if not upload:
+        return redirect(url_for("dashboard"))
+
+    if request.method == "POST":
+        code = request.form.get("code", "")
+        new_upload_id = _create_upload_review(
+            code,
+            request.form.get("language", upload["language"]),
+            request.form.get("model", upload["model"]),
+            request.form.get("analyzer", upload["analyzer"]),
+            request.form.get("filename", upload["filename"]),
+        )
+        return redirect(url_for("review_page", upload_id=new_upload_id))
+
+    return render_template("edit_review.html", upload=upload)
 
 
 @app.route("/review/<int:upload_id>")
@@ -290,7 +393,7 @@ def review_page(upload_id):
     if not upload:
         return redirect(url_for("dashboard"))
 
-    return render_template("review.html", upload=upload, reviews=reviews)
+    return render_template("review.html", upload=upload, reviews=reviews, code_lines=upload["content"].splitlines())
 
 
 @app.route("/review/<int:upload_id>/decision", methods=["POST"])
@@ -362,8 +465,9 @@ def report_page(upload_id):
     generated_report = generate_final_report(ReviewResult(findings=findings), load_decisions(upload_id))
     if stored_report:
         generated_report.update({"precision_score": stored_report["precision_score"], "recall": stored_report["recall"], "false_positive_rate": stored_report["false_positive_rate"]})
-    return render_template("report.html", upload=upload, reviews=reviews, human_reviews=human_reviews, report=generated_report)
+    return render_template("report.html", upload=upload, reviews=reviews, human_reviews=human_reviews, report=generated_report, code_lines=upload["content"].splitlines())
 
 
 if __name__ == "__main__":
+    init_db()
     app.run(debug=True)

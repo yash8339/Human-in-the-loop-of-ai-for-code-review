@@ -108,6 +108,80 @@
     body.app-shell .link-button { display: inline-block; padding: 10px 16px; background: var(--app-panel-strong); color: var(--app-accent); border: 1px solid var(--app-border); border-radius: 10px; text-decoration: none; }
     body.app-shell .summary-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); }
     body.app-shell .summary-card { padding: 18px; }
+    body.app-shell .workspace {
+      display: block;
+    }
+    body.app-shell.dashboard-page .workspace {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+    body.app-shell.dashboard-page .workspace.panel-collapsed {
+      display: block;
+    }
+    body.app-shell.dashboard-page .workspace > main { grid-column: 2; }
+    body.app-shell:not(.dashboard-page) .workspace > main {
+      width: min(100%, 900px);
+      margin: 0 auto;
+    }
+    body.app-shell.dashboard-page .side-panel {
+      grid-column: 1;
+      grid-row: 1;
+      box-sizing: border-box;
+      padding: 18px;
+      background: #211629;
+      border: 1px solid var(--app-border);
+      border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    }
+    body.app-shell.dashboard-page .panel-toggle {
+      position: fixed;
+      top: 28px;
+      left: 28px;
+      z-index: 10;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid var(--app-border);
+      border-radius: 8px;
+      background: var(--app-panel-strong);
+      color: var(--app-accent);
+      font-size: 26px;
+      line-height: 1;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+    }
+    body.app-shell.dashboard-page .panel-toggle:hover { transform: none; }
+    body.app-shell.dashboard-page .panel-toggle span { display: block; transform: translateY(-2px); }
+    body.app-shell.dashboard-page .side-panel h2 { font-size: 16px; margin-bottom: 12px; }
+    body.app-shell.dashboard-page .side-panel p { margin: 7px 0; font-size: 13px; overflow-wrap: anywhere; }
+    body.app-shell.dashboard-page .side-panel nav { display: grid; gap: 8px; margin-top: 18px; }
+    body.app-shell.dashboard-page .side-panel nav a { padding: 8px 0; }
+    body.app-shell .source-code,
+    body.app-shell .highlighted-line {
+      overflow-x: auto;
+      padding: 16px;
+      border: 1px solid var(--app-border);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--app-text);
+      font-family: Consolas, "Courier New", monospace;
+      line-height: 1.00;
+      white-space: pre;
+    }
+    body.app-shell .source-line { display: block; }
+    body.app-shell .line-number {
+      display: inline-block;
+      width: 3.5em;
+      margin-right: 1em;
+      color: var(--app-muted);
+      user-select: none;
+      text-align: right;
+    }
+    body.app-shell .highlighted-line {
+      border-color: #ff507a;
+      background: rgba(255, 80, 122, 0.12);
+    }
 
     body.app-shell .hero-title { color: var(--app-text); }
     body.app-shell .hero-subtitle { color: var(--app-muted); }
@@ -134,6 +208,10 @@
       body.app-shell .topnav a { margin-left: 0; margin-right: 16px; }
       body.app-shell .card,
       body.app-shell .hero { padding: 22px; }
+      body.app-shell.dashboard-page .workspace { display: block; }
+      body.app-shell.dashboard-page .workspace > main,
+      body.app-shell.dashboard-page .side-panel { grid-column: 1; }
+      body.app-shell.dashboard-page .panel-toggle { top: 20px; left: 16px; }
     }
   </style>
 </head>
@@ -154,7 +232,37 @@
         {% endif %}
       </div>
     </div>
-    {% block content %}{% endblock %}
+    {% if session.user_id and request.path == "/dashboard" %}
+      <button class="panel-toggle" type="button" aria-controls="user-panel" aria-expanded="true" aria-label="Toggle user panel" title="Toggle user panel"><span aria-hidden="true">&#9776;</span></button>
+    {% endif %}
+    <div class="workspace" id="workspace">
+      <main>{% block content %}{% endblock %}</main>
+      {% if session.user_id and request.path == "/dashboard" %}
+        <aside class="side-panel" id="user-panel">
+          <h2>{{ current_user.name or session.user_name }}</h2>
+          <p>{{ current_user.email }}</p>
+          <p>{{ current_user.education }}</p>
+          <p>{{ current_user.phone_number }}</p>
+          <nav>
+            <a href="/profile">Edit profile</a>
+            <a href="/history">Review history</a>
+          </nav>
+        </aside>
+      {% endif %}
+    </div>
   </div>
+  {% if session.user_id and request.path == "/dashboard" %}
+    <script>
+      const panelToggle = document.querySelector('.panel-toggle');
+      const userPanel = document.getElementById('user-panel');
+      const workspace = document.getElementById('workspace');
+      panelToggle.addEventListener('click', () => {
+        const isOpen = panelToggle.getAttribute('aria-expanded') === 'true';
+        panelToggle.setAttribute('aria-expanded', String(!isOpen));
+        userPanel.hidden = isOpen;
+        workspace.classList.toggle('panel-collapsed', isOpen);
+      });
+    </script>
+  {% endif %}
 </body>
 </html>

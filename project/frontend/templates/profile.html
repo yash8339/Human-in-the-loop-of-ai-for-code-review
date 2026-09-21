@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Profile | AI Code Review{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Your Profile</h1>
+  <p>Keep your reviewer information up to date.</p>
+  {% if message %}<div class="message">{{ message }}</div>{% endif %}
+  <form method="post" class="form-grid">
+    <input name="name" value="{{ user.name }}" placeholder="Name" required>
+    <input name="email" type="email" value="{{ user.email }}" placeholder="Email" required>
+    <input name="education" value="{{ user.education }}" placeholder="Education" required>
+    <input name="phone_number" value="{{ user.phone_number }}" placeholder="Phone number" required>
+    <button type="submit">Save Profile</button>
+  </form>
+</div>
+{% endblock %}

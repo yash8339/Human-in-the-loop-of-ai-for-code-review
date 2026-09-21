@@ -60,6 +60,12 @@
   <h1>Review Findings</h1>
   <p><strong>File:</strong> {{ upload.filename }} | <strong>Language:</strong> {{ upload.language }} | <strong>Model:</strong> {{ upload.model }} | <strong>Analyzer:</strong> {{ upload.analyzer }}</p>
   <a class="link-button" href="/dashboard">Back to dashboard</a>
+  <a class="link-button" href="/review/{{ upload.id }}/edit">Modify code and review again</a>
+</div>
+<div class="card source-card">
+  <h2>Submitted Code</h2>
+  <pre class="source-code">{% for line in code_lines %}<span class="source-line"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
+{% endfor %}</pre>
 </div>
 {% if reviews %}
   <div class="form-grid">
@@ -67,7 +73,9 @@
       <div class="card">
         <h3>{{ review.title }}</h3>
         <p>{{ review.description }}</p>
-        <p class="small-text">Issue {{ review.id }} · Severity: {{ review.severity }} · Confidence: {{ review.confidence }} · Source: {{ review.source }}</p>
+        <p class="small-text">Issue {{ review.id }} · Line {{ review.line }} · Severity: {{ review.severity }} · Confidence: {{ review.confidence }} · Source: {{ review.source }}</p>
+        {% if review.line and review.line <= code_lines|length %}<pre class="highlighted-line"><span class="line-number">{{ review.line }}</span>{{ code_lines[review.line - 1] }}</pre>{% endif %}
+        <p class="small-text"><strong>Where to change:</strong> update the code shown above on line {{ review.line }}. The reviewer note can describe the exact replacement.</p>
         <form method="post" action="/review/{{ upload.id }}/decision" class="review-actions">
           <input type="hidden" name="review_id" value="{{ review.id }}">
           <label>Reviewer note <input type="text" name="reviewer_note" maxlength="1000"></label>

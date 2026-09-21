@@ -207,5 +207,159 @@
     "model": "OpenAI",
     "analyzer": "Semgrep",
     "code": "from datetime import datetime\r\nfrom playsound import playsound\r\nimport winsound\r\n\r\n\r\n#input the time in HH:MM where HH is  hour and MM is minutes in 12 hour format\r\n\r\n\r\n\r\nalarm_date=input('Enter the date on which you want to set the alarm: ').strip()\r\nalarm_time=''.join(input(\"Enter the time of alarm to be set in HH:MM,AM/PM format: \").split())\r\nmusic_or_beep = input(\"Enter m for a music or b for beep sound: \")\r\nif music_or_beep=='b':\r\n    dur=int(input(\"duration in seconds: \"))*1000 #winsound takes in milliseconds\r\n    freq = int(input(\"frequency of the noise: \")) #optimal- 500\r\nalarm_hour=alarm_time[0:2]\r\nalarm_minute=alarm_time[3:5]\r\nalarm_period=alarm_time[6:8].upper()\r\n\r\n\r\n\r\nprint('setting alarm.....')\r\n\r\n\r\n\r\nwhile True:\r\n    current_time=datetime.now()\r\n    current_hour=current_time.strftime('%I')\r\n    current_minute=current_time.strftime('%M')\r\n    current_period=current_time.strftime('%p')\r\n    current_date=current_time.strftime('%d')\r\n    if current_date==alarm_date and current_period==alarm_period and current_hour==alarm_hour and current_minute==alarm_minute:\r\n        print('*'*10)\r\n        print('| '+'Wake up!'+' |')\r\n        print('*'*10)\r\n        if music_or_beep=='m':\r\n            playsound('audio.wav')\r\n        else:\r\n            winsound.Beep(freq,dur)\r\n        break"
+  },
+  {
+    "upload_id": 41,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-21 23:43:30",
+    "filename": "demo_21.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 42,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 00:07:17",
+    "filename": "demo_22.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 43,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 00:07:19",
+    "filename": "demo_22.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 44,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 01:05:13",
+    "filename": "demo_23.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 45,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 01:05:17",
+    "filename": "demo_23.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 46,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 01:05:19",
+    "filename": "demo_23.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 47,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 01:48:59",
+    "filename": "demo_34",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 48,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 01:51:25",
+    "filename": "demo_34",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 49,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 01:52:14",
+    "filename": "demo_34",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 50,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 02:02:09",
+    "filename": "demo_24.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 51,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 02:04:18",
+    "filename": "demo_24.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 52,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 02:16:09",
+    "filename": "demo_24.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=False)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 53,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 02:18:23",
+    "filename": "demo_24.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=False)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 54,
+    "user_id": 4,
+    "user_name": "parthiv",
+    "submitted_at": "2026-09-22 02:25:17",
+    "filename": "demo_24.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=False)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
   }
 ]

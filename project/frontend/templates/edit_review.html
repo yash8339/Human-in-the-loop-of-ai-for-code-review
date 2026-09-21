@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Modify Code | AI Code Review{% endblock %}
+{% block content %}
+<style>
+  .code-editor {
+    display: flex;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .editor-line-numbers,
+  .code-editor textarea {
+    min-height: 360px;
+    box-sizing: border-box;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .editor-line-numbers {
+    flex: 0 0 52px;
+    overflow: hidden;
+    padding: 12px 10px;
+    color: var(--app-muted);
+    background: rgba(0, 0, 0, 0.22);
+    text-align: right;
+    user-select: none;
+    white-space: pre;
+  }
+
+  .code-editor textarea {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    resize: vertical;
+  }
+</style>
+<div class="card">
+  <h1>Modify Code and Review Again</h1>
+  <p>Edit the submitted source, then run a fresh review. The new result is saved as a separate history entry.</p>
+  <form method="post" class="form-grid">
+    <input name="filename" value="{{ upload.filename }}" required>
+    <input type="hidden" name="language" value="{{ upload.language }}">
+    <input type="hidden" name="model" value="{{ upload.model }}">
+    <input type="hidden" name="analyzer" value="{{ upload.analyzer }}">
+    <div class="code-editor">
+      <pre class="editor-line-numbers" aria-hidden="true"></pre>
+      <textarea id="code-editor" name="code" rows="24" required>{{ upload.content }}</textarea>
+    </div>
+    <button type="submit">Review Modified Code</button>
+  </form>
+</div>
+<script>
+  const codeEditor = document.getElementById('code-editor');
+  const lineNumbers = document.querySelector('.editor-line-numbers');
+
+  function updateLineNumbers() {
+    const lineCount = codeEditor.value.split('\n').length;
+    lineNumbers.textContent = Array.from({ length: lineCount }, (_, index) => index + 1).join('\n');
+    lineNumbers.scrollTop = codeEditor.scrollTop;
+  }
+
+  codeEditor.addEventListener('input', updateLineNumbers);
+  codeEditor.addEventListener('scroll', () => {
+    lineNumbers.scrollTop = codeEditor.scrollTop;
+  });
+  updateLineNumbers();
+</script>
+{% endblock %}

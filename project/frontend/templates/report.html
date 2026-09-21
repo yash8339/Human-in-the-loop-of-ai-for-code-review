@@ -5,6 +5,7 @@
   <h1>Final Review Report</h1>
   <p><strong>File:</strong> {{ upload.filename }} | <strong>Language:</strong> {{ upload.language }}</p>
   <a class="link-button" href="/dashboard">Back to dashboard</a>
+  <a class="link-button" href="/review/{{ upload.id }}/edit">Modify code and review again</a>
 </div>
 <div class="summary-grid">
   <div class="summary-card">
@@ -27,6 +28,11 @@
     <h2>Review Time</h2>
     <p>{{ report.review_time }}s</p>
   </div>
+</div>
+<div class="card source-card">
+  <h2>Reviewed Code</h2>
+  <pre class="source-code">{% for line in code_lines %}<span class="source-line"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
+{% endfor %}</pre>
 </div>
 <div class="card">
   <h2>Critical Issues</h2>

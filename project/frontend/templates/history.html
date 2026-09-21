@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Review History | AI Code Review{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Review History</h1>
+  <p>Open any previous submission to inspect its code, findings, report, or create a revised review.</p>
+</div>
+<div class="summary-grid">
+  {% for upload in uploads %}
+    <div class="summary-card">
+      <h2><a href="/review/{{ upload.id }}">{{ upload.filename }}</a></h2>
+      <p>{{ upload.language }} · {{ upload.model }} · {{ upload.analyzer }}</p>
+      <p class="small-text">Submitted {{ upload.uploaded_at }}</p>
+      <a class="link-button" href="/report/{{ upload.id }}">View final report</a>
+    </div>
+  {% else %}
+    <div class="card"><p>No review history yet.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}
