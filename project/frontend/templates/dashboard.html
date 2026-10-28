@@ -414,22 +414,6 @@
       </form>
     </div>
 
-    <div class="card">
-      <h2>Past Uploads</h2>
-      {% if uploads %}
-        <div class="summary-grid">
-          {% for upload in uploads %}
-            <div class="summary-card">
-              <h3><a href="/review/{{ upload.id }}">{% if upload.submission_type == 'folder' %}Project review{% elif upload.submission_type == 'file' %}File review{% else %}Code review{% endif %} #{{ upload.id }}</a></h3>
-              <p>{{ upload.submission_type or 'code' }} · {{ upload.review_status or 'reviewed' }} · {{ upload.model }} · {{ upload.analyzer }}</p>
-              <p class="small-text">Uploaded: {{ upload.uploaded_at }}</p>
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p>No uploads yet. Use the form above to submit code.</p>
-      {% endif %}
-    </div>
   </div>
 </div>
 

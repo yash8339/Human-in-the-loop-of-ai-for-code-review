@@ -215,7 +215,6 @@ def require_login():
 def request_entity_too_large(_error):
     return render_template(
         "dashboard.html",
-        uploads=[],
         error="The upload exceeds the 500 MiB project size limit.",
     ), 413
 
@@ -443,14 +442,14 @@ def dashboard():
                     raise ValueError("Enter a project name of at most 255 characters.")
                 upload_id = _create_project_upload(project_name, submission_type, prepared_files)
             except ValueError as error:
-                return render_template("dashboard.html", uploads=[], error=str(error)), 400
+                return render_template("dashboard.html", error=str(error)), 400
             return redirect(url_for("review_page", upload_id=upload_id))
 
         if submission_type != "code":
-            return render_template("dashboard.html", uploads=[], error="Select a valid submission type."), 400
+            return render_template("dashboard.html", error="Select a valid submission type."), 400
         code = request.form.get("code", "")
         if not code.strip():
-            return render_template("dashboard.html", uploads=[], error="Paste code before starting the review."), 400
+            return render_template("dashboard.html", error="Paste code before starting the review."), 400
         language = request.form.get("language", "python")
         model = request.form.get("model", "ChatGPT")
         analyzer = request.form.get("analyzer", "Semgrep")
@@ -458,16 +457,7 @@ def dashboard():
         upload_id = _create_upload_review(code, language, model, analyzer, filename)
         return redirect(url_for("review_page", upload_id=upload_id))
 
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM uploads WHERE user_id = %s ORDER BY id DESC",
-        (session["user_id"],),
-    )
-    uploads = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return render_template("dashboard.html", uploads=uploads, error=None)
+    return render_template("dashboard.html", error=None)
 
 
 @app.route("/review/<int:upload_id>/edit", methods=["GET", "POST"])
