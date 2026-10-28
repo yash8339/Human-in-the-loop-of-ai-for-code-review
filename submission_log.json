@@ -372,5 +372,27 @@
     "model": "OpenAI",
     "analyzer": "Semgrep",
     "code": "import sqlite3\r\nimport subprocess\r\nfrom flask import Flask, request\r\n\r\napp = Flask(__name__)\r\n\r\ndef get_user(username):\r\n    conn = sqlite3.connect(\"users.db\")\r\n\r\n    # Get user information\r\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"'\"\r\n    result = conn.execute(query).fetchall()\r\n\r\n    return result\r\n\r\n\r\n@app.route(\"/search\")\r\ndef search():\r\n    username = request.args.get(\"username\")\r\n\r\n    users = get_user(username)\r\n\r\n    return str(users)\r\n\r\n\r\n@app.route(\"/run\")\r\ndef run_command():\r\n    command = request.args.get(\"command\")\r\n\r\n    result = subprocess.call(command, shell=True)\r\n\r\n    return str(result)\r\n\r\n\r\n@app.route(\"/calculate\")\r\ndef calculate():\r\n    number = request.args.get(\"number\")\r\n\r\n    result = eval(number)\r\n\r\n    return str(result)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    app.run(debug=True)"
+  },
+  {
+    "upload_id": 34,
+    "user_id": 5,
+    "user_name": "asha",
+    "submitted_at": "2026-10-28 07:52:09",
+    "filename": "review.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "def greet(name):\r\n    return f\"Hello {name}\""
+  },
+  {
+    "upload_id": 35,
+    "user_id": 5,
+    "user_name": "asha",
+    "submitted_at": "2026-10-28 07:54:19",
+    "filename": "review.py",
+    "language": "python",
+    "model": "OpenAI",
+    "analyzer": "Semgrep",
+    "code": "def greet(name):\r\n    return f\"Hello {name}\""
   }
 ]

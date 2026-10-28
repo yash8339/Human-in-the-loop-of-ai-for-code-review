@@ -5,6 +5,8 @@ import pytest
 
 from project.backend.project_review import (
     MAX_ANALYSIS_WORKERS,
+    MAX_FILE_SIZE,
+    MAX_PROJECT_SIZE,
     analyze_project_files,
     normalize_project_path,
     prepare_project_files,
@@ -37,6 +39,41 @@ def test_normalize_project_path_rejects_unsafe_paths(path):
 def test_prepare_project_files_rejects_duplicate_paths():
     with pytest.raises(ValueError, match="duplicate"):
         prepare_project_files([("src/app.py", b"one"), ("src/app.py", b"two")])
+
+
+def test_prepare_project_files_accepts_projects_larger_than_previous_limit():
+    file_content = b"x" * (2 * 1024 * 1024)
+    uploaded_files = [
+        (f"src/file_{index}.{'py' if index == 0 else 'md'}", file_content)
+        for index in range(2)
+    ]
+
+    files = prepare_project_files(uploaded_files)
+
+    assert MAX_PROJECT_SIZE == 500 * 1024 * 1024
+    assert MAX_FILE_SIZE == 10 * 1024 * 1024
+    assert len(files) == 2
+    assert len(files[0].content.encode("utf-8")) == len(file_content)
+
+
+def test_prepare_project_files_rejects_file_over_10_mib():
+    with pytest.raises(ValueError, match="10 MiB per-file limit"):
+        prepare_project_files([("src/large.py", b"x" * (MAX_FILE_SIZE + 1))])
+
+
+def test_prepare_project_files_accepts_500_files():
+    files = prepare_project_files(
+        [(f"src/file_{index}.py", b"pass") for index in range(500)]
+    )
+
+    assert len(files) == 500
+
+
+def test_prepare_project_files_rejects_more_than_500_files():
+    with pytest.raises(ValueError, match="at most 500 files"):
+        prepare_project_files(
+            [(f"src/file_{index}.py", b"pass") for index in range(501)]
+        )
 
 
 def test_project_analysis_preserves_paths_and_merges_matching_tool_findings(monkeypatch):

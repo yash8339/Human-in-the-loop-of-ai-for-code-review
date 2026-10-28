@@ -10,9 +10,10 @@ from .merge.merger import findings_match
 from .review_engine import analyze_file
 from .utils.schema import ReviewFinding
 
-MAX_PROJECT_FILES = 100
-MAX_FILE_SIZE = 1024 * 1024
-MAX_PROJECT_SIZE = 10 * 1024 * 1024
+MAX_PROJECT_FILES = 500
+MAX_FILE_SIZE = 10 * 1024 * 1024
+MAX_PROJECT_SIZE = 500 * 1024 * 1024
+MAX_PROJECT_REQUEST_SIZE = MAX_PROJECT_SIZE + 1024 * 1024
 MAX_ANALYSIS_WORKERS = 4
 
 SOURCE_LANGUAGES = {
@@ -78,9 +79,9 @@ def prepare_project_files(uploaded_files: Iterable[tuple[str, bytes]]) -> list[P
         content_bytes = raw_content or b""
         total_size += len(content_bytes)
         if len(content_bytes) > MAX_FILE_SIZE:
-            raise ValueError("A selected file exceeds the 1 MiB per-file limit.")
+            raise ValueError("A selected file exceeds the 10 MiB per-file limit.")
         if total_size > MAX_PROJECT_SIZE:
-            raise ValueError("The project exceeds the 10 MiB total upload limit.")
+            raise ValueError("The project exceeds the 500 MiB total upload limit.")
 
         language = SOURCE_LANGUAGES.get(Path(relative_path).suffix.lower())
         if language is None:

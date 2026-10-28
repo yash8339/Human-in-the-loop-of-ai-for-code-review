@@ -1,5 +1,11 @@
 from project.backend import main
+from project.backend.project_review import MAX_PROJECT_REQUEST_SIZE
 from project.backend.utils.schema import ReviewFinding
+
+
+def test_upload_request_limit_allows_500_mib_projects_and_multipart_overhead():
+    assert main.app.config["MAX_CONTENT_LENGTH"] == MAX_PROJECT_REQUEST_SIZE
+    assert MAX_PROJECT_REQUEST_SIZE == 501 * 1024 * 1024
 
 
 class _FakeCursor:

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dashboard | AI Code Review{% endblock %}
-{% block body_class %}app-shell dashboard-page{% endblock %}
+{% block body_class %}app-shell dashboard-page creative-tim-layout{% endblock %}
 {% block content %}
 <style>
   :root {
@@ -13,47 +13,157 @@
     --dashboard-accent-dark: #30264b;
     --dashboard-text: #ffffff;
     --dashboard-muted: rgba(255, 255, 255, 0.65);
+    --sidebar-bg: linear-gradient(180deg, #30264b 0%, #1c152d 100%);
   }
 
-  .page {
-    max-width: 1120px;
-    padding: 28px 32px 64px;
+  body.creative-tim-layout {
+    background-color: var(--dashboard-bg-deep);
+    margin: 0;
+    display: flex;
+    min-height: 100vh;
   }
 
-  .topnav {
-    min-height: 48px;
-    margin-bottom: 42px;
-    padding-bottom: 18px;
-    border-bottom: 1px solid var(--dashboard-border);
+  body.app-shell.creative-tim-layout > .page {
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
   }
 
-  .topnav strong {
-    color: var(--dashboard-accent);
-    font-size: 15px;
-    letter-spacing: 0.02em;
-  }
-
-  .topnav a {
-    color: var(--dashboard-muted);
-    font-size: 13px;
-    margin-left: 22px;
-    transition: color 0.2s ease;
-  }
-
-  body.dashboard-page .topnav a[href="/"] {
+  body.app-shell.creative-tim-layout .topnav,
+  body.app-shell.creative-tim-layout .panel-toggle,
+  body.app-shell.creative-tim-layout .side-panel {
     display: none;
   }
 
-  .topnav a:hover,
-  a:hover {
+  body.app-shell.creative-tim-layout .workspace {
+    display: block;
+  }
+
+  body.app-shell.creative-tim-layout .workspace > main {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  /* Left Sidebar */
+  .ct-sidebar {
+    width: 260px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--dashboard-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 24px 0;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+  }
+
+  .ct-sidebar-brand {
+    padding: 0 24px 24px 24px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--dashboard-text);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    text-transform: uppercase;
+  }
+
+  .ct-sidebar-brand span {
     color: var(--dashboard-accent);
+  }
+
+  .ct-nav-links {
+    list-style: none;
+    padding: 20px 12px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-grow: 1;
+  }
+
+  .ct-nav-links a {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    color: var(--dashboard-muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .ct-nav-links a:hover, 
+  .ct-nav-links a.active {
+    background: rgba(103, 216, 181, 0.15);
+    color: var(--dashboard-accent);
+  }
+
+  /* Logout Button at Bottom */
+  .ct-sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .ct-logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 11px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+  }
+
+  .ct-logout-btn:hover {
+    background: #ef4444;
+    color: #ffffff;
+    transform: translateY(-1px);
+  }
+
+  /* Main Wrapper */
+  .ct-main-wrapper {
+    margin-left: 260px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--dashboard-bg);
+    min-height: 100vh;
+  }
+
+  /* Page Content */
+  .page {
+    max-width: 1120px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 32px;
+    box-sizing: border-box;
   }
 
   .card {
     background: var(--dashboard-panel);
     border: 1px solid var(--dashboard-border);
-    border-radius: 18px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+    border-radius: 16px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     padding: 28px;
@@ -61,37 +171,35 @@
   }
 
   .hero {
-    background: linear-gradient(125deg, rgba(48, 38, 75, 0.72), rgba(30, 72, 67, 0.42));
-    padding: 40px 42px;
+    background: linear-gradient(125deg, rgba(48, 38, 75, 0.8), rgba(30, 72, 67, 0.5));
+    padding: 36px 40px;
   }
 
-  h1,
-  h2,
-  h3 {
+  h1, h2, h3 {
     color: var(--dashboard-text);
+    margin-top: 0;
   }
 
   h1 {
     max-width: 720px;
-    margin-bottom: 12px;
-    font-size: clamp(30px, 5vw, 52px);
+    margin-bottom: 10px;
+    font-size: clamp(26px, 4vw, 40px);
     font-weight: 500;
-    letter-spacing: -0.02em;
   }
 
   h2 {
-    margin-bottom: 22px;
-    font-size: 21px;
+    margin-bottom: 20px;
+    font-size: 19px;
     font-weight: 500;
   }
 
   h3 {
-    font-size: 17px;
+    font-size: 16px;
   }
 
   p {
     color: var(--dashboard-muted);
-    line-height: 1.65;
+    line-height: 1.6;
   }
 
   .hero p {
@@ -104,11 +212,11 @@
   textarea {
     width: 100%;
     box-sizing: border-box;
-    padding: 12px;
-    margin-bottom: 12px;
-    font-size: 16px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 14px;
     color: var(--dashboard-text);
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.25);
     border: 1px solid var(--dashboard-border);
     border-radius: 10px;
     outline: none;
@@ -118,7 +226,7 @@
   input:focus,
   select:focus,
   textarea:focus {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.4);
     border-color: var(--dashboard-accent);
   }
 
@@ -128,27 +236,32 @@
   }
 
   textarea {
-    min-height: 240px;
+    min-height: 200px;
     font-family: Consolas, "Courier New", monospace;
     line-height: 1.5;
   }
 
-  button {
+  button[type="submit"] {
     background: var(--dashboard-accent);
     color: #10191b;
     font-weight: 700;
-    box-shadow: 0 8px 20px rgba(103, 216, 181, 0.18);
-    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(103, 216, 181, 0.2);
+    transition: transform 0.2s ease, background 0.2s ease;
   }
 
-  button:hover {
+  button[type="submit"]:hover {
     background: #8ce7ca;
-    box-shadow: 0 10px 26px rgba(103, 216, 181, 0.28);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
   }
 
   .summary-grid {
-    gap: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
   }
 
   .summary-card {
@@ -160,10 +273,12 @@
 
   .summary-card p {
     font-size: 13px;
+    margin-bottom: 6px;
   }
 
   .small-text {
     color: var(--dashboard-muted);
+    font-size: 12px !important;
   }
 
   .visually-hidden-file-input {
@@ -174,109 +289,150 @@
     margin: -1px;
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    clip-path: inset(50%);
   }
 
-  a {
+  .link-button {
+    display: inline-block;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--dashboard-border);
+    border-radius: 8px;
+    color: var(--dashboard-text);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+
+  .link-button:hover {
+    background: rgba(255, 255, 255, 0.12);
     color: var(--dashboard-accent);
   }
 
-  @media (max-width: 640px) {
-    .page {
-      padding: 20px 16px 44px;
-    }
-
-    .topnav {
-      align-items: flex-start;
-      flex-direction: column;
-      gap: 14px;
-      margin-bottom: 28px;
-    }
-
-    .topnav a {
-      margin-left: 0;
-      margin-right: 16px;
-    }
-
-    .card,
-    .hero {
-      padding: 22px;
-    }
+  @media (max-width: 768px) {
+    .ct-sidebar { width: 70px; }
+    .ct-sidebar-brand span, .ct-nav-links a span, .ct-logout-btn span { display: none; }
+    .ct-main-wrapper { margin-left: 70px; }
   }
 </style>
-<div class="hero card">
-  <h1>Welcome, {{ session.user_name or 'Reviewer' }}</h1>
-  <p>Submit code for AI-assisted review, then validate findings and generate a final report.</p>
-</div>
-<div class="card">
-  <h2>Start a Review</h2>
-  {% if error %}<p role="alert">{{ error }}</p>{% endif %}
-  <form method="post" enctype="multipart/form-data" class="form-grid" id="submission-form">
-    <input type="hidden" name="submission_type" id="submission-type" value="code">
-    <label for="upload-mode">Or choose an upload option</label>
-    <select id="upload-mode">
-      <option value="" selected disabled hidden>Choose an upload option</option>
-      <option value="file">Upload a file</option>
-      <option value="folder">Upload a project folder</option>
-    </select>
-    <div id="code-input">
-      <input type="hidden" name="filename" value="review.py">
-      <select name="language">
-        <option value="python">Python</option>
-        <option value="java">Java</option>
-        <option value="cpp">C++</option>
-        <option value="javascript">JavaScript</option>
-      </select>
-      <textarea name="code" rows="12">def greet(name):
+
+<!-- Left Sidebar -->
+<aside class="ct-sidebar">
+  <div>
+    <div class="ct-sidebar-brand">
+      AI <span>Review</span>
+    </div>
+    <ul class="ct-nav-links">
+      <li><a href="#" class="active">📊 <span>Dashboard</span></a></li>
+      <li><a href="#submission-form">⚡ <span>New Review</span></a></li>
+      <li><a href="/profile">👤 <span>Edit profile</span></a></li>
+      <li><a href="/history">🕘 <span>Review history</span></a></li>
+    </ul>
+  </div>
+  
+  <!-- Logout Button at bottom -->
+  <div class="ct-sidebar-footer">
+    <a href="/logout" class="ct-logout-btn">
+      🚪 <span>Log out</span>
+    </a>
+  </div>
+</aside>
+
+<!-- Main Wrapper (No duplicate top navbar) -->
+<div class="ct-main-wrapper">
+  <div class="page">
+    <div class="hero card">
+      <h1>Welcome, {{ session.user_name or 'Reviewer' }}</h1>
+      <p>Submit code for AI-assisted review, then validate findings and generate a final report.</p>
+    </div>
+
+    <div class="card">
+      <h2>Start a Review</h2>
+      {% if error %}<p role="alert" style="color: #f87171;">{{ error }}</p>{% endif %}
+      <form method="post" enctype="multipart/form-data" class="form-grid" id="submission-form">
+        <input type="hidden" name="submission_type" id="submission-type" value="code">
+        
+        <label for="upload-mode">Or choose an upload option</label>
+        <select id="upload-mode">
+          <option value="" selected disabled hidden>Choose an upload option</option>
+          <option value="file">Upload a file</option>
+          <option value="folder">Upload a project folder</option>
+        </select>
+
+        <div id="code-input">
+          <input type="hidden" name="filename" value="review.py">
+          <select name="language">
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="cpp">C++</option>
+            <option value="javascript">JavaScript</option>
+          </select>
+          <textarea name="code" rows="12">def greet(name):
     return f"Hello {name}"</textarea>
-    </div>
-    <div id="file-input" hidden>
-      <label class="link-button" for="single-project-file">Choose a source file</label>
-      <input class="visually-hidden-file-input" id="single-project-file" type="file" name="project_files" disabled aria-label="Choose a source file">
-      <span id="single-file-count" aria-live="polite"></span>
-    </div>
-    <div id="folder-input" hidden>
-      <label class="link-button" for="folder-project-files">Choose a project folder</label>
-      <input class="visually-hidden-file-input" id="folder-project-files" type="file" name="project_files" webkitdirectory directory multiple disabled aria-label="Choose a project folder">
-      <span id="folder-file-count" aria-live="polite"></span>
-    </div>
-    <div id="project-preview" hidden aria-live="polite">
-      <h3 id="preview-title">Selected project contents</h3>
-      <input id="project-name" name="project_name" type="hidden" value="Uploaded project" disabled>
-      <p id="preview-count"></p>
-      <p>Python files are reviewed by AI and the selected analyzer. Other supported source files use Semgrep only.</p>
-      <p>Limits: 100 files, 1 MiB per file, and 10 MiB total.</p>
-    </div>
-    <select name="model">
-      <option>OpenAI</option>
-      <option>Gemini</option>
-      <option>Groq</option>
-      <option>Claude</option>
-    </select>
-    <select name="analyzer">
-      <option>Semgrep</option>
-      <option>Bandit</option>
-    </select>
-    <button type="submit" id="submit-review">Review Code</button>
-  </form>
-</div>
-<div class="card">
-  <h2>Past Uploads</h2>
-  {% if uploads %}
-    <div class="summary-grid">
-      {% for upload in uploads %}
-        <div class="summary-card">
-          <h3><a href="/review/{{ upload.id }}">{% if upload.submission_type == 'folder' %}Project review{% elif upload.submission_type == 'file' %}File review{% else %}Code review{% endif %} #{{ upload.id }}</a></h3>
-          <p>{{ upload.submission_type or 'code' }} · {{ upload.review_status or 'reviewed' }} · {{ upload.model }} · {{ upload.analyzer }}</p>
-          <p class="small-text">Uploaded: {{ upload.uploaded_at }}</p>
         </div>
-      {% endfor %}
+
+        <div id="file-input" hidden>
+          <label class="link-button" for="single-project-file">Choose a source file</label>
+          <input class="visually-hidden-file-input" id="single-project-file" type="file" name="project_files" disabled>
+          <span id="single-file-count" aria-live="polite"></span>
+        </div>
+
+        <div id="folder-input" hidden>
+          <label class="link-button" for="folder-project-files">Choose a project folder</label>
+          <input class="visually-hidden-file-input" id="folder-project-files" type="file" name="project_files" webkitdirectory directory multiple disabled>
+          <span id="folder-file-count" aria-live="polite"></span>
+        </div>
+
+        <div id="project-preview" hidden aria-live="polite">
+          <h3 id="preview-title">Selected project contents</h3>
+          <input id="project-name" name="project_name" type="hidden" value="Uploaded project" disabled>
+          <p id="preview-count"></p>
+          <p>Python files are reviewed by AI and the selected analyzer. Other supported source files use Semgrep only.</p>
+          <p class="small-text">Limits: 500 files, 10 MiB per file, and 500 MiB total.</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
+          <div>
+            <label style="font-size:13px; margin-bottom:6px; display:block;">Select AI Model</label>
+            <select name="model">
+              <option>OpenAI</option>
+              <option>Gemini</option>
+              <option>Groq</option>
+              <option>Claude</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:13px; margin-bottom:6px; display:block;">Select Analyzer</label>
+            <select name="analyzer">
+              <option>Semgrep</option>
+              <option>Bandit</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" id="submit-review" style="margin-top: 12px;">Review Code</button>
+      </form>
     </div>
-  {% else %}
-    <p>No uploads yet. Use the form above to submit code.</p>
-  {% endif %}
+
+    <div class="card">
+      <h2>Past Uploads</h2>
+      {% if uploads %}
+        <div class="summary-grid">
+          {% for upload in uploads %}
+            <div class="summary-card">
+              <h3><a href="/review/{{ upload.id }}">{% if upload.submission_type == 'folder' %}Project review{% elif upload.submission_type == 'file' %}File review{% else %}Code review{% endif %} #{{ upload.id }}</a></h3>
+              <p>{{ upload.submission_type or 'code' }} · {{ upload.review_status or 'reviewed' }} · {{ upload.model }} · {{ upload.analyzer }}</p>
+              <p class="small-text">Uploaded: {{ upload.uploaded_at }}</p>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No uploads yet. Use the form above to submit code.</p>
+      {% endif %}
+    </div>
+  </div>
 </div>
+
 <script>
   (() => {
     const mode = document.getElementById("submission-type");

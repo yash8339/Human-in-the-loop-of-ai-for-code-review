@@ -203,6 +203,101 @@
     body.app-shell .stat-card { background: var(--app-panel); border-color: var(--app-border); color: var(--app-text); }
     body.app-shell .action-panel { background: rgba(48, 38, 75, 0.72); }
 
+    body.app-shell.secondary-page {
+      display: flex;
+      background-color: var(--app-bg-deep);
+    }
+    body.app-shell.secondary-page > .page {
+      width: calc(100% - 260px);
+      max-width: none;
+      min-width: 0;
+      margin: 0 0 0 260px;
+      padding: 32px;
+    }
+    body.app-shell.secondary-page .topnav { display: none; }
+    body.app-shell.secondary-page .workspace > main {
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+    body.app-shell.secondary-page .ct-sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 100;
+      display: flex;
+      width: 260px;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 0;
+      background: linear-gradient(180deg, #30264b 0%, #1c152d 100%);
+      border-right: 1px solid var(--app-border);
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+    body.app-shell.secondary-page .ct-sidebar-brand {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--app-text);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    body.app-shell.secondary-page .ct-sidebar-brand span { color: var(--app-accent); }
+    body.app-shell.secondary-page .ct-nav-links {
+      display: flex;
+      flex-grow: 1;
+      flex-direction: column;
+      gap: 6px;
+      margin: 0;
+      padding: 20px 12px;
+      list-style: none;
+    }
+    body.app-shell.secondary-page .ct-nav-links a {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      color: var(--app-muted);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+    body.app-shell.secondary-page .ct-nav-links a:hover,
+    body.app-shell.secondary-page .ct-nav-links a.active {
+      background: rgba(103, 216, 181, 0.15);
+      color: var(--app-accent);
+    }
+    body.app-shell.secondary-page .ct-sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    body.app-shell.secondary-page .ct-logout-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-sizing: border-box;
+      width: 100%;
+      padding: 11px;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 8px;
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    body.app-shell.secondary-page .ct-logout-btn:hover {
+      transform: translateY(-1px);
+      background: #ef4444;
+      color: #ffffff;
+    }
+
     @media (max-width: 640px) {
       body.app-shell .page { padding: 20px 16px 44px; }
       body.app-shell .topnav { align-items: flex-start; flex-direction: column; gap: 14px; margin-bottom: 28px; }
@@ -214,9 +309,35 @@
       body.app-shell.dashboard-page .side-panel { grid-column: 1; }
       body.app-shell.dashboard-page .panel-toggle { top: 20px; left: 16px; }
     }
+    @media (max-width: 768px) {
+      body.app-shell.secondary-page > .page {
+        width: calc(100% - 70px);
+        margin-left: 70px;
+      }
+      body.app-shell.secondary-page .ct-sidebar { width: 70px; }
+      body.app-shell.secondary-page .ct-sidebar-brand span,
+      body.app-shell.secondary-page .ct-nav-links a span,
+      body.app-shell.secondary-page .ct-logout-btn span { display: none; }
+    }
   </style>
 </head>
 <body class="{% block body_class %}app-shell{% endblock %}">
+  {% if session.user_id and (request.path in ["/profile", "/history"] or request.path.startswith("/review/") or request.path.startswith("/report/")) %}
+    <aside class="ct-sidebar">
+      <div>
+        <div class="ct-sidebar-brand">AI <span>Review</span></div>
+        <ul class="ct-nav-links">
+          <li><a href="/dashboard">📊 <span>Dashboard</span></a></li>
+          <li><a href="/dashboard#submission-form">⚡ <span>New Review</span></a></li>
+          <li><a href="/profile"{% if request.path == "/profile" %} class="active"{% endif %}>👤 <span>Edit profile</span></a></li>
+          <li><a href="/history"{% if request.path == "/history" %} class="active"{% endif %}>🕘 <span>Review history</span></a></li>
+        </ul>
+      </div>
+      <div class="ct-sidebar-footer">
+        <a href="/logout" class="ct-logout-btn">🚪 <span>Log out</span></a>
+      </div>
+    </aside>
+  {% endif %}
   <div class="page">
     <div class="topnav">
       <div>

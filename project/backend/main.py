@@ -14,7 +14,12 @@ try:
     from project.backend.human_review.decisions import HumanDecision
     from project.backend.human_review.report import generate_final_report
     from project.backend.human_review.storage import load_decisions, save_decision
-    from project.backend.project_review import analyze_project_files, prepare_project_files
+    from project.backend.project_review import (
+        MAX_FILE_SIZE,
+        MAX_PROJECT_REQUEST_SIZE,
+        analyze_project_files,
+        prepare_project_files,
+    )
     from project.backend.utils.schema import ReviewFinding, ReviewResult
 except ModuleNotFoundError:
     import sys
@@ -25,12 +30,17 @@ except ModuleNotFoundError:
     from backend.human_review.decisions import HumanDecision
     from backend.human_review.report import generate_final_report
     from backend.human_review.storage import load_decisions, save_decision
-    from backend.project_review import analyze_project_files, prepare_project_files
+    from backend.project_review import (
+        MAX_FILE_SIZE,
+        MAX_PROJECT_REQUEST_SIZE,
+        analyze_project_files,
+        prepare_project_files,
+    )
     from backend.utils.schema import ReviewFinding, ReviewResult
 
 app = Flask(__name__, template_folder="../frontend/templates")
 app.secret_key = "human-in-the-loop-demo"
-app.config["MAX_CONTENT_LENGTH"] = 11 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = MAX_PROJECT_REQUEST_SIZE
 _PROJECT_REVIEW_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 _ACTIVE_PROJECT_REVIEW_IDS: set[int] = set()
 _ACTIVE_PROJECT_REVIEW_LOCK = Lock()
@@ -39,7 +49,7 @@ DB_NAME = "code_review"
 DB_CONFIG_BASE = {
     "host": "127.0.0.1",
     "user": "root",
-    "password": "Meshva@1",
+    "password": "",
     "charset": "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor,
     "autocommit": False,
@@ -206,7 +216,7 @@ def request_entity_too_large(_error):
     return render_template(
         "dashboard.html",
         uploads=[],
-        error="The upload exceeds the 10 MiB project size limit.",
+        error="The upload exceeds the 500 MiB project size limit.",
     ), 413
 
 
@@ -422,7 +432,7 @@ def dashboard():
             ]
             try:
                 prepared_files = prepare_project_files(
-                    (item.filename, item.stream.read(1024 * 1024 + 1))
+                    (item.filename, item.stream.read(MAX_FILE_SIZE + 1))
                     for item in selected_files
                 )
                 project_name = request.form.get("project_name", "").strip()
