@@ -14,12 +14,6 @@
     --dashboard-muted: rgba(255, 255, 255, 0.65);
   }
 
-  body.app-shell {
-    background: radial-gradient(circle at 78% 10%, rgba(180, 50, 70, 0.22), transparent 30%),
-                radial-gradient(circle at 12% 36%, rgba(100, 150, 255, 0.16), transparent 34%),
-                linear-gradient(135deg, var(--dashboard-bg), var(--dashboard-bg-deep) 72%);
-  }
-
   .topnav {
     border-bottom-color: var(--dashboard-border);
   }
@@ -56,34 +50,67 @@
     color: var(--dashboard-text);
   }
 </style>
+{% macro finding_card(review, lines) %}
+  <div class="card">
+    <h3>{{ review.title }}</h3>
+    <p>{{ review.description }}</p>
+    <p class="small-text">
+      Issue {{ review.id }} · Line {{ review.line }} · Severity: {{ review.severity }}
+      · Confidence: {{ review.confidence }} · Source: {{ review.source }}
+    </p>
+    {% if review.suggested_fix %}<p><strong>Suggested fix:</strong> {{ review.suggested_fix }}</p>{% endif %}
+    {% if review.line and review.line <= lines|length %}
+      <pre class="highlighted-line review-source" hidden><span class="line-number">{{ review.line }}</span>{{ lines[review.line - 1] }}</pre>
+    {% endif %}
+    <form method="post" action="/review/{{ upload.id }}/decision" class="review-actions">
+      <input type="hidden" name="review_id" value="{{ review.id }}">
+      <label>Reviewer note <input type="text" name="reviewer_note" maxlength="1000"></label>
+      <label>Modified explanation <textarea name="modified_description" maxlength="4000" rows="3"></textarea></label>
+      <label>Modified suggested fix <textarea name="modified_fix" maxlength="4000" rows="3"></textarea></label>
+      <button type="submit" name="decision" value="accept">Accept</button>
+      <button type="submit" name="decision" value="reject">Reject</button>
+      <button type="submit" name="decision" value="modify">Modify</button>
+    </form>
+  </div>
+{% endmacro %}
 <div class="card">
   <h1>Review Findings</h1>
-  <p><strong>File:</strong> {{ upload.filename }} | <strong>Language:</strong> {{ upload.language }} | <strong>Model:</strong> {{ upload.model }} | <strong>Analyzer:</strong> {{ upload.analyzer }}</p>
+  <p><strong>Submission:</strong> {% if upload.submission_type == 'folder' %}Project review{% elif upload.submission_type == 'file' %}File review{% else %}Code review{% endif %} #{{ upload.id }} | <strong>Language:</strong> {{ upload.language }} | <strong>Model:</strong> {{ upload.model }} | <strong>Analyzer:</strong> {{ upload.analyzer }}</p>
   <a class="link-button" href="/dashboard">Back to dashboard</a>
-  <a class="link-button" href="/review/{{ upload.id }}/edit">Modify code and review again</a>
+  {% if upload.submission_type == 'code' %}<a class="link-button" href="/review/{{ upload.id }}/edit">Modify code and review again</a>{% endif %}
+  <label><input id="show-source-code" type="checkbox"> Show source code</label>
 </div>
+{% if upload.submission_type in ['file', 'folder'] %}
+  <p>{{ project_files|length }} supported source file(s) {% if upload.review_status == 'reviewed' %}analyzed{% else %}selected{% endif %}.</p>
+    {% if upload.review_status == 'uploaded' %}
+      <p>Upload saved. Uploaded code is analyzed as text and is never executed.</p>
+      <form method="post" action="/project/{{ upload.id }}/start">
+        <button type="submit">Start Code Review</button>
+      </form>
+    {% endif %}
+    {% if upload.review_status == 'failed' %}
+      <form method="post" action="/project/{{ upload.id }}/start">
+        <button type="submit">Retry Code Review</button>
+      </form>
+    {% endif %}
+  {% for file in project_files %}
+    {% for review in file.findings %}
+      {{ finding_card(review, file.content_lines) }}
+    {% endfor %}
+  {% endfor %}
+  {% if upload.review_status == 'reviewed' and not reviews %}
+    <div class="card"><p>No findings were reported by the selected analyzers for supported files.</p></div>
+  {% endif %}
+{% else %}
 <div class="card source-card">
   <h2>Submitted Code</h2>
-  <pre class="source-code">{% for line in code_lines %}<span class="source-line"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
+  <pre class="source-code review-source" hidden>{% for line in code_lines %}<span class="source-line"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
 {% endfor %}</pre>
 </div>
 {% if reviews %}
   <div class="form-grid">
     {% for review in reviews %}
-      <div class="card">
-        <h3>{{ review.title }}</h3>
-        <p>{{ review.description }}</p>
-        <p class="small-text">Issue {{ review.id }} · Line {{ review.line }} · Severity: {{ review.severity }} · Confidence: {{ review.confidence }} · Source: {{ review.source }}</p>
-        {% if review.line and review.line <= code_lines|length %}<pre class="highlighted-line"><span class="line-number">{{ review.line }}</span>{{ code_lines[review.line - 1] }}</pre>{% endif %}
-        <p class="small-text"><strong>Where to change:</strong> update the code shown above on line {{ review.line }}. The reviewer note can describe the exact replacement.</p>
-        <form method="post" action="/review/{{ upload.id }}/decision" class="review-actions">
-          <input type="hidden" name="review_id" value="{{ review.id }}">
-          <label>Reviewer note <input type="text" name="reviewer_note" maxlength="1000"></label>
-          <button type="submit" name="decision" value="accept">Accept</button>
-          <button type="submit" name="decision" value="reject">Reject</button>
-          <button type="submit" name="decision" value="modify">Modify</button>
-        </form>
-      </div>
+      {{ finding_card(review, code_lines) }}
     {% endfor %}
   </div>
 {% else %}
@@ -91,4 +118,41 @@
     <p>No review findings available.</p>
   </div>
 {% endif %}
+{% endif %}
+<script>
+  (() => {
+    const toggle = document.getElementById("show-source-code");
+    const codeSections = document.querySelectorAll(".review-source");
+    if (toggle) {
+      toggle.addEventListener("change", () => {
+        for (const section of codeSections) {
+          section.hidden = !toggle.checked;
+        }
+      });
+    }
+
+    const statusUrl = {% if upload.submission_type in ['file', 'folder'] and upload.review_status == 'processing' %}{{ url_for('project_review_status', upload_id=upload.id)|tojson }}{% else %}null{% endif %};
+    if (statusUrl) {
+      const pollStatus = async () => {
+        try {
+          const response = await fetch(statusUrl, {
+            headers: { "Accept": "application/json" },
+          });
+          if (!response.ok) throw new Error("Could not check review status.");
+          const result = await response.json();
+          if (["reviewed", "uploaded", "failed"].includes(result.status)) {
+            window.location.reload();
+            return;
+          }
+        } catch (error) {
+          console.error("Could not refresh project review status.", error);
+          window.setTimeout(pollStatus, 3000);
+          return;
+        }
+        window.setTimeout(pollStatus, 3000);
+      };
+      window.setTimeout(pollStatus, 3000);
+    }
+  })();
+</script>
 {% endblock %}

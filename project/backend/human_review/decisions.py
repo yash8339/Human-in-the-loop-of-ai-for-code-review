@@ -15,11 +15,15 @@ class HumanDecision:
     issue_id: str
     status: str
     reviewer_note: str = ""
+    modified_description: str = ""
+    modified_fix: str = ""
 
     def __post_init__(self) -> None:
         self.issue_id = str(self.issue_id).strip()
         self.status = str(self.status).strip().lower()
         self.reviewer_note = str(self.reviewer_note).strip()
+        self.modified_description = str(self.modified_description).strip()
+        self.modified_fix = str(self.modified_fix).strip()
         if not self.issue_id:
             raise ValueError("issue_id is required")
         if self.status not in VALID_STATUSES:

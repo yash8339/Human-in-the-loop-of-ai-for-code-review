@@ -90,9 +90,13 @@ Human-in-the-loop-of-ai-for-code-review/
 └── README.md
 ```
 
-## File format
+## Submitting code and projects
 
-The current review engine supports Python source code (`.py`) for AI and static analysis. The web form accepts the source as text and stores the selected filename as metadata. A typical submission is:
+The dashboard offers three submission modes: paste code, upload one source file, or select a project folder. Folder selection previews only the count of supported source files; unsupported files and file/folder names are omitted from the interface. Project review shows the supported-file count and findings without per-file cards or names. Original paths remain stored internally for analysis. Source code is hidden by default and can be shown with the **Show source code** checkbox. Project uploads are staged first; select **Start Code Review** on the project review page to begin analysis.
+
+Uploads are treated as text and are never executed. The server rejects unsafe relative paths, duplicate paths, projects with more than 100 files, individual files larger than 1 MiB, and project uploads larger than 10 MiB. Binary, invalid UTF-8, and unsupported files are skipped and not displayed. Supported source extensions include Python, JavaScript/TypeScript, Java, C/C++, Go, Rust, PHP, and Ruby. The current AI reviewer analyzes Python; other supported languages use Semgrep only. Bandit and the local Python rules remain Python-only. Results therefore depend on the selected analyzer being installed and available. Project analysis runs in a background worker; the review page displays its status and refreshes when results are ready, avoiding a long-running browser request. The development server disables Werkzeug's auto-reloader so source edits do not interrupt in-progress reviews; restart the server manually after code changes.
+
+The existing single-code form remains available and supports code pasted into the dashboard. A typical submission is:
 
 ```python
 import subprocess

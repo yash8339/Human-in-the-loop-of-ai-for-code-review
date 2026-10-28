@@ -20,7 +20,9 @@ def generate_final_report(
     findings = list(result.findings)
     sections = {
         "critical": _report_findings(findings, "critical", decision_by_id),
+        "high": _report_findings(findings, "high", decision_by_id),
         "medium": _report_findings(findings, "medium", decision_by_id),
+        "low": _report_findings(findings, "low", decision_by_id),
     }
     total_reviewed = len(decision_by_id)
     accepted = sum(decision.status == "accept" for decision in decision_by_id.values())
@@ -34,7 +36,7 @@ def generate_final_report(
         **sections,
         "accepted_suggestions": [
             item["suggested_fix"]
-            for item in sections["critical"] + sections["medium"]
+            for item in sections["critical"] + sections["high"] + sections["medium"] + sections["low"]
             if item["decision"] == "accept" and item["suggested_fix"]
         ],
         "accuracy": round((accepted / total_reviewed * 100) if total_reviewed else 0.0, 2),
@@ -59,7 +61,16 @@ def _report_findings(
                 "line": finding.line,
                 "issue": finding.title,
                 "description": finding.description,
-                "suggested_fix": finding.suggested_fix,
+                "suggested_fix": (
+                    decision.modified_fix
+                    if decision and decision.modified_fix
+                    else finding.suggested_fix
+                ),
+                "modified_description": (
+                    decision.modified_description
+                    if decision and decision.modified_description
+                    else ""
+                ),
                 "decision": decision.status if decision else "pending",
                 "reviewer_note": decision.reviewer_note if decision else "",
             }

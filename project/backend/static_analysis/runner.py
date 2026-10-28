@@ -10,19 +10,31 @@ from typing import Any, Dict, List
 from .python_rules import run_python_rules
 
 
+def _normalize_severity(value: str) -> str:
+    severity = (value or "").strip().lower()
+    if severity in {"critical", "high", "error"}:
+        return "high"
+    if severity in {"medium", "warning"}:
+        return "medium"
+    if severity in {"low", "info"}:
+        return "low"
+    return "medium"
+
+
 def run_static_analysis(file_path: str, language: str = "python", analyzer: str = "semgrep") -> List[Dict[str, Any]]:
     """Run Semgrep or Bandit and return findings in the common static schema."""
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
-    if language.lower() != "python":
+    analyzer_name = (analyzer or "semgrep").strip().lower()
+    is_python = language.lower() == "python"
+    if not is_python and analyzer_name != "semgrep":
         return []
 
-    analyzer_name = (analyzer or "semgrep").strip().lower()
     if analyzer_name not in {"semgrep", "bandit"}:
         analyzer_name = "semgrep"
 
-    local_findings = run_python_rules(path)
+    local_findings = run_python_rules(path) if is_python else []
     try:
         if analyzer_name == "bandit":
             result = subprocess.run(
@@ -32,7 +44,7 @@ def run_static_analysis(file_path: str, language: str = "python", analyzer: str 
             payload = json.loads(result.stdout or "{}")
             external_findings = [
                 {"line": issue.get("line_number") or 0, "rule_id": issue.get("test_id") or "B000",
-                 "severity": (issue.get("issue_severity") or "low").lower(),
+                 "severity": _normalize_severity(issue.get("issue_severity") or "low"),
                  "message": issue.get("issue_text") or "Bandit finding"}
                 for issue in payload.get("results", [])
             ]
@@ -47,7 +59,7 @@ def run_static_analysis(file_path: str, language: str = "python", analyzer: str 
         external_findings = [
             {"line": issue.get("start", {}).get("line") or 0,
              "rule_id": issue.get("extra", {}).get("rule_id") or "semgrep-rule",
-             "severity": (issue.get("extra", {}).get("severity") or "info").lower(),
+             "severity": _normalize_severity(issue.get("extra", {}).get("severity") or "info"),
              "message": issue.get("extra", {}).get("message") or "Semgrep finding"}
             for issue in payload.get("results", [])
         ]

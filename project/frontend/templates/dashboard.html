@@ -166,6 +166,18 @@
     color: var(--dashboard-muted);
   }
 
+  .visually-hidden-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
   a {
     color: var(--dashboard-accent);
   }
@@ -198,15 +210,44 @@
   <p>Submit code for AI-assisted review, then validate findings and generate a final report.</p>
 </div>
 <div class="card">
-  <h2>Upload Source Code</h2>
-  <form method="post" class="form-grid">
-    <input name="filename" placeholder="Filename" value="review.py">
-    <select name="language">
-      <option value="python">Python</option>
-      <option value="java">Java</option>
-      <option value="cpp">C++</option>
-      <option value="javascript">JavaScript</option>
+  <h2>Start a Review</h2>
+  {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+  <form method="post" enctype="multipart/form-data" class="form-grid" id="submission-form">
+    <input type="hidden" name="submission_type" id="submission-type" value="code">
+    <label for="upload-mode">Or choose an upload option</label>
+    <select id="upload-mode">
+      <option value="" selected disabled hidden>Choose an upload option</option>
+      <option value="file">Upload a file</option>
+      <option value="folder">Upload a project folder</option>
     </select>
+    <div id="code-input">
+      <input type="hidden" name="filename" value="review.py">
+      <select name="language">
+        <option value="python">Python</option>
+        <option value="java">Java</option>
+        <option value="cpp">C++</option>
+        <option value="javascript">JavaScript</option>
+      </select>
+      <textarea name="code" rows="12">def greet(name):
+    return f"Hello {name}"</textarea>
+    </div>
+    <div id="file-input" hidden>
+      <label class="link-button" for="single-project-file">Choose a source file</label>
+      <input class="visually-hidden-file-input" id="single-project-file" type="file" name="project_files" disabled aria-label="Choose a source file">
+      <span id="single-file-count" aria-live="polite"></span>
+    </div>
+    <div id="folder-input" hidden>
+      <label class="link-button" for="folder-project-files">Choose a project folder</label>
+      <input class="visually-hidden-file-input" id="folder-project-files" type="file" name="project_files" webkitdirectory directory multiple disabled aria-label="Choose a project folder">
+      <span id="folder-file-count" aria-live="polite"></span>
+    </div>
+    <div id="project-preview" hidden aria-live="polite">
+      <h3 id="preview-title">Selected project contents</h3>
+      <input id="project-name" name="project_name" type="hidden" value="Uploaded project" disabled>
+      <p id="preview-count"></p>
+      <p>Python files are reviewed by AI and the selected analyzer. Other supported source files use Semgrep only.</p>
+      <p>Limits: 100 files, 1 MiB per file, and 10 MiB total.</p>
+    </div>
     <select name="model">
       <option>OpenAI</option>
       <option>Gemini</option>
@@ -217,9 +258,7 @@
       <option>Semgrep</option>
       <option>Bandit</option>
     </select>
-    <textarea name="code" rows="12">def greet(name):
-    return f"Hello {name}"</textarea>
-    <button type="submit">Review Code</button>
+    <button type="submit" id="submit-review">Review Code</button>
   </form>
 </div>
 <div class="card">
@@ -228,8 +267,8 @@
     <div class="summary-grid">
       {% for upload in uploads %}
         <div class="summary-card">
-          <h3><a href="/review/{{ upload.id }}">{{ upload.filename }}</a></h3>
-          <p>{{ upload.language }} · {{ upload.model }} · {{ upload.analyzer }}</p>
+          <h3><a href="/review/{{ upload.id }}">{% if upload.submission_type == 'folder' %}Project review{% elif upload.submission_type == 'file' %}File review{% else %}Code review{% endif %} #{{ upload.id }}</a></h3>
+          <p>{{ upload.submission_type or 'code' }} · {{ upload.review_status or 'reviewed' }} · {{ upload.model }} · {{ upload.analyzer }}</p>
           <p class="small-text">Uploaded: {{ upload.uploaded_at }}</p>
         </div>
       {% endfor %}
@@ -238,4 +277,90 @@
     <p>No uploads yet. Use the form above to submit code.</p>
   {% endif %}
 </div>
+<script>
+  (() => {
+    const mode = document.getElementById("submission-type");
+    const uploadMode = document.getElementById("upload-mode");
+    const codeSection = document.getElementById("code-input");
+    const fileSection = document.getElementById("file-input");
+    const folderSection = document.getElementById("folder-input");
+    const singleInput = document.getElementById("single-project-file");
+    const folderInput = document.getElementById("folder-project-files");
+    const preview = document.getElementById("project-preview");
+    const previewCount = document.getElementById("preview-count");
+    const projectName = document.getElementById("project-name");
+    const singleFileCount = document.getElementById("single-file-count");
+    const folderFileCount = document.getElementById("folder-file-count");
+    const form = document.getElementById("submission-form");
+    const supportedExtensions = new Set([
+      ".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".java", ".c",
+      ".h", ".cc", ".cpp", ".cxx", ".hpp", ".go", ".rs", ".php", ".rb"
+    ]);
+
+    function currentFiles() {
+      return mode.value === "folder" ? [...folderInput.files] : [...singleInput.files];
+    }
+
+    function relativeName(file) {
+      return mode.value === "folder" ? (file.webkitRelativePath || file.name) : file.name;
+    }
+
+    function renderPreview() {
+      const files = currentFiles();
+      preview.hidden = mode.value === "code" || files.length === 0;
+      const supportedFiles = files
+        .filter(file => {
+          const path = relativeName(file);
+          const extension = path.includes(".") ? path.slice(path.lastIndexOf(".")).toLowerCase() : "";
+          return supportedExtensions.has(extension);
+        })
+        .sort((left, right) => relativeName(left).localeCompare(relativeName(right)));
+      previewCount.textContent = `${supportedFiles.length} supported source file(s) selected`;
+      singleFileCount.textContent = supportedFiles.length ? "Source file selected" : "";
+      folderFileCount.textContent = supportedFiles.length ? `${supportedFiles.length} supported source file(s) selected` : "";
+    }
+
+    function updateMode() {
+      const isCode = mode.value === "code";
+      const isFile = mode.value === "file";
+      codeSection.hidden = !isCode;
+      fileSection.hidden = !isFile;
+      folderSection.hidden = isCode || isFile;
+      preview.hidden = isCode || !currentFiles().length;
+      singleInput.disabled = !isFile;
+      folderInput.disabled = mode.value !== "folder";
+      projectName.disabled = isCode;
+      projectName.value = isFile ? "Uploaded file" : "Uploaded project";
+      document.getElementById("submit-review").textContent = isCode ? "Review Code" : "Upload Project";
+      renderPreview();
+    }
+
+    uploadMode.addEventListener("change", () => {
+      mode.value = uploadMode.value || "code";
+      updateMode();
+    });
+    singleInput.addEventListener("change", renderPreview);
+    folderInput.addEventListener("change", renderPreview);
+
+    form.addEventListener("submit", async event => {
+      if (mode.value === "code") return;
+      event.preventDefault();
+      const data = new FormData(form);
+      data.delete("project_files");
+      for (const file of currentFiles()) {
+        data.append("project_files", file, relativeName(file));
+      }
+      const response = await fetch(form.action, { method: "POST", body: data });
+      if (response.ok) {
+        window.location.assign(response.url);
+        return;
+      }
+      document.open();
+      document.write(await response.text());
+      document.close();
+    });
+
+    updateMode();
+  })();
+</script>
 {% endblock %}

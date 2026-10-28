@@ -3,9 +3,11 @@
 {% block content %}
 <div class="card">
   <h1>Final Review Report</h1>
-  <p><strong>File:</strong> {{ upload.filename }} | <strong>Language:</strong> {{ upload.language }}</p>
+  <p><strong>Submission:</strong> {% if upload.submission_type == 'folder' %}Project review{% elif upload.submission_type == 'file' %}File review{% else %}Code review{% endif %} #{{ upload.id }} | <strong>Language:</strong> {{ upload.language }}</p>
   <a class="link-button" href="/dashboard">Back to dashboard</a>
-  <a class="link-button" href="/review/{{ upload.id }}/edit">Modify code and review again</a>
+  <a class="link-button" href="/review/{{ upload.id }}">Back to findings</a>
+  {% if upload.submission_type == 'code' %}<a class="link-button" href="/review/{{ upload.id }}/edit">Modify code and review again</a>{% endif %}
+  {% if upload.submission_type == 'code' %}<label><input id="show-source-code" type="checkbox"> Show source code</label>{% endif %}
 </div>
 <div class="summary-grid">
   <div class="summary-card">
@@ -29,31 +31,56 @@
     <p>{{ report.review_time }}s</p>
   </div>
 </div>
+{% if upload.submission_type in ['file', 'folder'] %}
+<p>{{ project_files|length }} supported source file(s) analyzed.</p>
+{% endif %}
+{% if upload.submission_type == 'code' %}
 <div class="card source-card">
   <h2>Reviewed Code</h2>
-  <pre class="source-code">{% for line in code_lines %}<span class="source-line"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
+  <pre class="source-code review-source" hidden>{% for line in code_lines %}<span class="source-line"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
 {% endfor %}</pre>
 </div>
+{% endif %}
 <div class="card">
   <h2>Critical Issues</h2>
   {% if report.critical %}
     <ul>
       {% for item in report.critical %}
-        <li><strong>Issue {{ item.issue_id }} · Line {{ item.line }}:</strong> {{ item.description }} ({{ item.decision }}){% if item.reviewer_note %} - {{ item.reviewer_note }}{% endif %}</li>
+        <li><strong>Issue {{ item.issue_id }} · Line {{ item.line }}:</strong> {{ item.modified_description or item.description }} ({{ item.decision }}){% if item.reviewer_note %} - {{ item.reviewer_note }}{% endif %}{% if item.suggested_fix %}<br>Suggested fix: {{ item.suggested_fix }}{% endif %}</li>
       {% endfor %}
     </ul>
   {% else %}
     <p>No critical issues.</p>
   {% endif %}
+  <h2>High Issues</h2>
+  {% if report.high %}
+    <ul>
+      {% for item in report.high %}
+        <li><strong>Issue {{ item.issue_id }} · Line {{ item.line }}:</strong> {{ item.modified_description or item.description }} ({{ item.decision }}){% if item.reviewer_note %} - {{ item.reviewer_note }}{% endif %}{% if item.suggested_fix %}<br>Suggested fix: {{ item.suggested_fix }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No high issues.</p>
+  {% endif %}
   <h2>Medium Issues</h2>
   {% if report.medium %}
     <ul>
       {% for item in report.medium %}
-        <li><strong>Issue {{ item.issue_id }} · Line {{ item.line }}:</strong> {{ item.description }} ({{ item.decision }}){% if item.reviewer_note %} - {{ item.reviewer_note }}{% endif %}</li>
+        <li><strong>Issue {{ item.issue_id }} · Line {{ item.line }}:</strong> {{ item.modified_description or item.description }} ({{ item.decision }}){% if item.reviewer_note %} - {{ item.reviewer_note }}{% endif %}{% if item.suggested_fix %}<br>Suggested fix: {{ item.suggested_fix }}{% endif %}</li>
       {% endfor %}
     </ul>
   {% else %}
     <p>No medium issues.</p>
+  {% endif %}
+  <h2>Low Issues</h2>
+  {% if report.low %}
+    <ul>
+      {% for item in report.low %}
+        <li><strong>Issue {{ item.issue_id }} · Line {{ item.line }}:</strong> {{ item.modified_description or item.description }} ({{ item.decision }}){% if item.reviewer_note %} - {{ item.reviewer_note }}{% endif %}{% if item.suggested_fix %}<br>Suggested fix: {{ item.suggested_fix }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No low issues.</p>
   {% endif %}
 </div>
 <div class="card">
@@ -62,4 +89,18 @@
     <ul>{% for suggestion in report.accepted_suggestions %}<li>{{ suggestion }}</li>{% endfor %}</ul>
   {% else %}<p>No suggestions accepted yet.</p>{% endif %}
 </div>
+<script>
+  (() => {
+    const toggle = document.getElementById("show-source-code");
+    if (!toggle) return;
+    for (const section of document.querySelectorAll(".review-source")) {
+      section.hidden = !toggle.checked;
+    }
+    toggle.addEventListener("change", () => {
+      for (const section of document.querySelectorAll(".review-source")) {
+        section.hidden = !toggle.checked;
+      }
+    });
+  })();
+</script>
 {% endblock %}

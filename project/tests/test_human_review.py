@@ -100,3 +100,4 @@ def test_final_report_has_sections_suggestions_accuracy_and_time():
     assert report["accepted_suggestions"] == ["Use a safe API."]
     assert report["accuracy"] == 50.0
     assert report["review_time"] == 12.35
+    assert "filename" not in report["critical"][0]

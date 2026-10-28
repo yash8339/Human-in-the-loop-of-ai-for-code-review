@@ -13,6 +13,7 @@ class ReviewFinding:
     issue_id: str = ""
     line: int = 0
     suggested_fix: str = ""
+    filename: str = ""
 
 
 @dataclass
