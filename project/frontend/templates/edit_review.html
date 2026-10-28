@@ -6,70 +6,203 @@
   .code-editor {
     display: flex;
     width: 100%;
+    min-height: 360px;
     overflow: hidden;
     border: 1px solid var(--app-border);
     border-radius: 10px;
-    background: rgba(0, 0, 0, 0.2);
+    background: #141414;
+  }
+
+  .editor-input-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    min-height: 360px;
+    overflow: hidden;
   }
 
   .editor-line-numbers,
+  .editor-highlight,
   .code-editor textarea {
-    min-height: 360px;
     box-sizing: border-box;
     font-family: Consolas, "Courier New", monospace;
-    font-size: 16px;
-    line-height: 1.5;
+    font-size: 14px;
+    line-height: 1.55;
+    tab-size: 4;
   }
 
   .editor-line-numbers {
     flex: 0 0 52px;
     overflow: hidden;
-    padding: 12px 10px;
-    color: var(--app-muted);
-    background: rgba(0, 0, 0, 0.22);
+    margin: 0;
+    padding: 14px 10px;
+    color: #777;
+    background: #101010;
     text-align: right;
     user-select: none;
     white-space: pre;
   }
 
+  .editor-highlight,
   .code-editor textarea {
-    flex: 1;
-    min-width: 0;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     margin: 0;
+    padding: 14px 16px;
     border: 0;
     border-radius: 0;
-    resize: vertical;
+    overflow: auto;
+    white-space: pre;
+    overflow-wrap: normal;
+    word-break: normal;
   }
+
+  .editor-highlight {
+    pointer-events: none;
+    color: #e6e6e6;
+  }
+
+  .editor-highlight code {
+    font: inherit;
+  }
+
+  .editor-highlight .token-keyword { color: #8da7ff; font-weight: 600; }
+  .editor-highlight .token-string { color: #49d17d; }
+  .editor-highlight .token-comment { color: #7e9b78; font-style: italic; }
+  .editor-highlight .token-number { color: #d78bdc; }
+  .editor-highlight .token-function { color: #f0d54e; font-weight: 600; }
+  .editor-highlight .token-builtin { color: #e8a66a; }
+
+  .code-editor textarea {
+    z-index: 1;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    caret-color: #f2f2f2;
+    background: transparent;
+    resize: none;
+    outline: none;
+  }
+
+  .code-editor textarea::selection {
+    background: rgba(90, 130, 220, 0.35);
+  }
+
+  .code-editor:focus-within {
+    border-color: var(--app-accent);
+  }
+
+  .editor-highlight::-webkit-scrollbar {
+    display: none;
+  }
+
 </style>
 <div class="card">
   <h1>Modify Code and Review Again</h1>
-  <p>Edit the submitted source, then run a fresh review. The new result is saved as a separate history entry.</p>
+  {% if upload.submission_type in ['file', 'folder'] %}
+    <p>Edit <strong>{{ target_filename }}</strong>. Your full project is copied into a new review, preserving the original history.</p>
+  {% else %}
+    <p>Edit the submitted source, then run a fresh review. The new result is saved as a separate history entry.</p>
+  {% endif %}
+  {% if error %}<p role="alert">{{ error }}</p>{% endif %}
   <form method="post" class="form-grid">
-    <input type="hidden" name="filename" value="{{ upload.filename }}">
+    <input type="hidden" name="filename" value="{{ target_filename }}">
+    <input type="hidden" name="line" value="{{ highlight_line or '' }}">
     <input type="hidden" name="language" value="{{ upload.language }}">
     <input type="hidden" name="model" value="{{ upload.model }}">
     <input type="hidden" name="analyzer" value="{{ upload.analyzer }}">
     <div class="code-editor">
       <pre class="editor-line-numbers" aria-hidden="true"></pre>
-      <textarea id="code-editor" name="code" rows="24" required>{{ upload.content }}</textarea>
+      <div class="editor-input-wrap">
+        <pre class="editor-highlight" aria-hidden="true"><code></code></pre>
+        <textarea id="code-editor" name="code" rows="24" required wrap="off" spellcheck="false">{{ editor_code }}</textarea>
+      </div>
     </div>
-    <button type="submit">Review Modified Code</button>
+    <button type="submit">{% if upload.submission_type in ['file', 'folder'] %}Save Code and Create New Project Review{% else %}Review Modified Code{% endif %}</button>
   </form>
 </div>
 <script>
   const codeEditor = document.getElementById('code-editor');
   const lineNumbers = document.querySelector('.editor-line-numbers');
+  const highlightedCode = document.querySelector('.editor-highlight');
+  const highlightedCodeText = highlightedCode.querySelector('code');
+  const editorLanguage = {{ editor_language|default('python', true)|tojson }};
+
+  const keywords = new Set(
+    'and as assert async await break case catch class const continue def del elif else except ' +
+    'export extends finally for from function global if import in is lambda let match namespace ' +
+    'new not of pass private protected public raise return self static super switch this throw ' +
+    'try typeof var void while with yield'.split(' ')
+  );
+  const builtins = new Set(
+    'bool dict float int list object print range set str tuple'.split(' ')
+  );
+
+  function escapeHtml(value) {
+    return value.replace(/[&<>"]/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
+    })[character]);
+  }
+
+  function highlightCode(source) {
+    const tokenPattern = /("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|#[^\n]*|\/\/[^\n]*|\/\*[\s\S]*?\*\/|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*\b)/g;
+    const fragments = [];
+    let position = 0;
+    for (const match of source.matchAll(tokenPattern)) {
+      const token = match[0];
+      const start = match.index;
+      fragments.push(escapeHtml(source.slice(position, start)));
+      let tokenClass = '';
+      if (/^(["'`])/.test(token)) {
+        tokenClass = 'token-string';
+      } else if (
+        token.startsWith('#') || token.startsWith('//') || token.startsWith('/*')
+      ) {
+        tokenClass = 'token-comment';
+      } else if (/^\d/.test(token)) {
+        tokenClass = 'token-number';
+      } else if (keywords.has(token)) {
+        tokenClass = 'token-keyword';
+      } else if (builtins.has(token)) {
+        tokenClass = 'token-builtin';
+      } else if (/\s*\(/.test(source.slice(start + token.length, start + token.length + 4))) {
+        tokenClass = 'token-function';
+      }
+      fragments.push(tokenClass
+        ? `<span class="${tokenClass}">${escapeHtml(token)}</span>`
+        : escapeHtml(token));
+      position = start + token.length;
+    }
+    fragments.push(escapeHtml(source.slice(position)));
+    highlightedCodeText.innerHTML = `${fragments.join('')}\n`;
+  }
 
   function updateLineNumbers() {
     const lineCount = codeEditor.value.split('\n').length;
     lineNumbers.textContent = Array.from({ length: lineCount }, (_, index) => index + 1).join('\n');
     lineNumbers.scrollTop = codeEditor.scrollTop;
+    highlightCode(codeEditor.value);
   }
 
   codeEditor.addEventListener('input', updateLineNumbers);
   codeEditor.addEventListener('scroll', () => {
     lineNumbers.scrollTop = codeEditor.scrollTop;
+    highlightedCode.scrollTop = codeEditor.scrollTop;
+    highlightedCode.scrollLeft = codeEditor.scrollLeft;
   });
   updateLineNumbers();
+
+  const targetLine = Number({{ highlight_line|default(0, true)|tojson }});
+  if (targetLine > 0) {
+    const lines = codeEditor.value.split('\n');
+    const lineIndex = Math.min(targetLine - 1, lines.length - 1);
+    const selectionStart = lines.slice(0, lineIndex).reduce((total, line) => total + line.length + 1, 0);
+    const selectionEnd = selectionStart + (lines[lineIndex] || '').length;
+    codeEditor.focus();
+    codeEditor.setSelectionRange(selectionStart, selectionEnd);
+    codeEditor.scrollTop = Math.max(0, (lineIndex - 3) * parseFloat(getComputedStyle(codeEditor).lineHeight));
+    lineNumbers.scrollTop = codeEditor.scrollTop;
+  }
 </script>
 {% endblock %}

@@ -2,6 +2,58 @@
 {% block title %}Report | AI Code Review{% endblock %}
 {% block body_class %}app-shell secondary-page{% endblock %}
 {% block content %}
+<style>
+  .report-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+
+  .report-chart h2 {
+    margin-top: 0;
+  }
+
+  .report-chart-row {
+    display: grid;
+    grid-template-columns: minmax(72px, 100px) minmax(40px, 1fr) 32px;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+  }
+
+  .report-chart-label,
+  .report-chart-count {
+    font-size: 14px;
+  }
+
+  .report-chart-count {
+    text-align: right;
+  }
+
+  .report-chart-track {
+    height: 12px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .report-chart-bar {
+    display: block;
+    height: 100%;
+    min-width: 0;
+    border-radius: inherit;
+    background: #67d8b5;
+  }
+
+  .severity-critical .report-chart-bar { background: #f06b6b; }
+  .severity-high .report-chart-bar { background: #f2a35e; }
+  .severity-medium .report-chart-bar { background: #e5ce64; }
+  .severity-low .report-chart-bar { background: #67b9dc; }
+  .decision-reject .report-chart-bar { background: #f06b6b; }
+  .decision-modify .report-chart-bar { background: #b89af3; }
+  .decision-pending .report-chart-bar { background: #8992a3; }
+</style>
 <div class="card">
   <h1>Final Review Report</h1>
   <p><strong>Submission:</strong> {% if upload.submission_type == 'folder' %}Project review{% elif upload.submission_type == 'file' %}File review{% else %}Code review{% endif %} #{{ upload.id }} | <strong>Language:</strong> {{ upload.language }}</p>
@@ -31,6 +83,34 @@
     <h2>Review Time</h2>
     <p>{{ report.review_time }}s</p>
   </div>
+</div>
+<div class="report-chart-grid">
+  <section class="card report-chart" aria-labelledby="severity-chart-title">
+    <h2 id="severity-chart-title">Findings by Severity</h2>
+    <p>Number of reported findings at each severity level.</p>
+    {% for item in severity_chart %}
+      <div class="report-chart-row severity-{{ item.label|lower }}">
+        <span class="report-chart-label">{{ item.label }}</span>
+        <span class="report-chart-track" aria-hidden="true">
+          <span class="report-chart-bar" style="width: {{ item.width }}%"></span>
+        </span>
+        <span class="report-chart-count">{{ item.count }}</span>
+      </div>
+    {% endfor %}
+  </section>
+  <section class="card report-chart" aria-labelledby="decision-chart-title">
+    <h2 id="decision-chart-title">Human Review Decisions</h2>
+    <p>Share of findings that are accepted, rejected, modified, or still pending.</p>
+    {% for item in decision_chart %}
+      <div class="report-chart-row decision-{{ item.label|lower }}">
+        <span class="report-chart-label">{{ item.label }}</span>
+        <span class="report-chart-track" aria-hidden="true">
+          <span class="report-chart-bar" style="width: {{ item.width }}%"></span>
+        </span>
+        <span class="report-chart-count">{{ item.count }}</span>
+      </div>
+    {% endfor %}
+  </section>
 </div>
 {% if upload.submission_type in ['file', 'folder'] %}
 <p>{{ project_files|length }} supported source file(s) analyzed.</p>

@@ -49,7 +49,7 @@ DB_NAME = "code_review"
 DB_CONFIG_BASE = {
     "host": "127.0.0.1",
     "user": "root",
-    "password": "",
+    "password": "Meshva@1",
     "charset": "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor,
     "autocommit": False,
@@ -470,23 +470,108 @@ def edit_review(upload_id):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM uploads WHERE id = %s AND user_id = %s", (upload_id, session["user_id"]))
     upload = cursor.fetchone()
+    project_files = []
+    target_filename = request.values.get("filename", "")
+    if upload and upload.get("submission_type") in {"file", "folder"}:
+        cursor.execute(
+            "SELECT relative_path, content, supported FROM project_files WHERE upload_id = %s ORDER BY relative_path",
+            (upload_id,),
+        )
+        project_files = cursor.fetchall()
     cursor.close()
     conn.close()
     if not upload:
         return redirect(url_for("dashboard"))
 
+    editor_code = upload["content"]
+    if upload.get("submission_type") in {"file", "folder"}:
+        matching_file = next(
+            (
+                project_file for project_file in project_files
+                if project_file["relative_path"] == target_filename and project_file["supported"]
+            ),
+            None,
+        )
+        if not matching_file:
+            return redirect(url_for("review_page", upload_id=upload_id))
+        editor_code = matching_file["content"]
+
     if request.method == "POST":
         code = request.form.get("code", "")
+        filename = request.form.get("filename", upload["filename"])
+        if upload.get("submission_type") in {"file", "folder"}:
+            updated_files = [
+                (project_file["relative_path"], (
+                    code.encode("utf-8")
+                    if project_file["relative_path"] == filename
+                    else str(project_file["content"]).encode("utf-8")
+                ))
+                for project_file in project_files
+            ]
+            try:
+                prepared_files = prepare_project_files(updated_files)
+            except ValueError as error:
+                return render_template(
+                    "edit_review.html",
+                    upload=upload,
+                    editor_code=code,
+                    target_filename=filename,
+                    highlight_line=request.form.get("line", type=int),
+                    editor_language=(
+                        Path(filename).suffix.lstrip(".").lower()
+                        if upload.get("submission_type") in {"file", "folder"}
+                        else upload["language"].lower()
+                    ),
+                    error=str(error),
+                ), 400
+            new_upload_id = _create_project_upload(
+                upload["filename"],
+                upload["submission_type"],
+                prepared_files,
+            )
+            _launch_project_review(
+                new_upload_id,
+                session["user_id"],
+                [
+                    {
+                        "relative_path": project_file.relative_path,
+                        "content": project_file.content,
+                        "supported": project_file.supported,
+                    }
+                    for project_file in prepared_files
+                ],
+                upload["analyzer"],
+                upload["model"],
+            )
+            return redirect(url_for(
+                "review_page",
+                upload_id=new_upload_id,
+                filename=filename,
+                _anchor="source-view",
+            ))
+
         new_upload_id = _create_upload_review(
             code,
             request.form.get("language", upload["language"]),
             request.form.get("model", upload["model"]),
             request.form.get("analyzer", upload["analyzer"]),
-            request.form.get("filename", upload["filename"]),
+            filename,
         )
         return redirect(url_for("review_page", upload_id=new_upload_id))
 
-    return render_template("edit_review.html", upload=upload)
+    return render_template(
+        "edit_review.html",
+        upload=upload,
+        editor_code=editor_code,
+        target_filename=target_filename or upload["filename"],
+        highlight_line=request.args.get("line", type=int),
+        editor_language=(
+            Path(target_filename).suffix.lstrip(".").lower()
+            if upload.get("submission_type") in {"file", "folder"}
+            else upload["language"].lower()
+        ),
+        error=None,
+    )
 
 
 @app.route("/review/<int:upload_id>")
@@ -526,12 +611,27 @@ def review_page(upload_id):
         }
         for index, project_file in enumerate(project_files)
     ]
+    for project_file in files_with_reviews:
+        project_file["finding_lines"] = sorted({
+            int(review.get("line") or 0)
+            for review in project_file["findings"]
+            if 1 <= int(review.get("line") or 0) <= len(project_file["content_lines"])
+        })
+    selected_filename = request.args.get("filename", "")
+    selected_project_file = next(
+        (
+            project_file for project_file in files_with_reviews
+            if project_file["relative_path"] == selected_filename
+        ),
+        None,
+    )
     return render_template(
         "review.html",
         upload=upload,
         reviews=reviews,
         code_lines=upload["content"].splitlines(),
         project_files=files_with_reviews,
+        selected_project_file=selected_project_file,
     )
 
 
@@ -565,13 +665,24 @@ def start_project_review(upload_id):
         (upload_id,),
     )
     project_files = cursor.fetchall()
+    analyzer = upload["analyzer"]
+    model = upload["model"]
+    cursor.close()
+    conn.close()
+    _launch_project_review(upload_id, session["user_id"], project_files, analyzer, model)
+    return redirect(url_for("review_page", upload_id=upload_id))
+
+
+def _launch_project_review(upload_id, user_id, project_files, analyzer, model):
+    conn = get_db()
+    cursor = conn.cursor()
     cursor.execute(
         """
         UPDATE uploads
         SET review_status = 'processing'
         WHERE id = %s AND user_id = %s AND review_status IN ('uploaded', 'failed')
         """,
-        (upload_id, session["user_id"]),
+        (upload_id, user_id),
     )
     started = cursor.rowcount == 1
     conn.commit()
@@ -584,17 +695,16 @@ def start_project_review(upload_id):
             _PROJECT_REVIEW_EXECUTOR.submit(
                 _process_project_review,
                 upload_id,
-                session["user_id"],
+                user_id,
                 project_files,
-                upload["analyzer"],
-                upload["model"],
+                analyzer,
+                model,
             )
         except RuntimeError:
             with _ACTIVE_PROJECT_REVIEW_LOCK:
                 _ACTIVE_PROJECT_REVIEW_IDS.discard(upload_id)
             app.logger.exception("Could not start project review for upload %s", upload_id)
-            _mark_project_review_failed(upload_id, session["user_id"])
-    return redirect(url_for("review_page", upload_id=upload_id))
+            _mark_project_review_failed(upload_id, user_id)
 
 
 def _process_project_review(upload_id, user_id, project_files, analyzer, model):
@@ -849,15 +959,40 @@ def report_page(upload_id):
         )
         for review in reviews
     ]
-    generated_report = generate_final_report(ReviewResult(findings=findings), load_decisions(upload_id))
+    decisions = load_decisions(upload_id)
+    generated_report = generate_final_report(ReviewResult(findings=findings), decisions)
     if stored_report:
         generated_report.update({"precision_score": stored_report["precision_score"], "recall": stored_report["recall"], "false_positive_rate": stored_report["false_positive_rate"]})
+    severity_chart = [
+        {
+            "label": severity.title(),
+            "count": sum(1 for review in reviews if str(review.get("severity", "")).lower() == severity),
+        }
+        for severity in ("critical", "high", "medium", "low")
+    ]
+    max_severity_count = max((item["count"] for item in severity_chart), default=0)
+    for item in severity_chart:
+        item["width"] = round(item["count"] / max_severity_count * 100, 1) if max_severity_count else 0
+
+    decision_counts = {status: 0 for status in ("accept", "reject", "modify", "pending")}
+    for decision in decisions:
+        decision_counts[decision.status] += 1
+    decision_counts["pending"] = max(0, len(reviews) - len(decisions))
+    decision_chart = [
+        {"label": status.title(), "count": decision_counts[status]}
+        for status in ("accept", "reject", "modify", "pending")
+    ]
+    for item in decision_chart:
+        item["width"] = round(item["count"] / len(reviews) * 100, 1) if reviews else 0
+
     return render_template(
         "report.html",
         upload=upload,
         reviews=reviews,
         human_reviews=human_reviews,
         report=generated_report,
+        severity_chart=severity_chart,
+        decision_chart=decision_chart,
         code_lines=upload["content"].splitlines(),
         project_files=project_files,
     )

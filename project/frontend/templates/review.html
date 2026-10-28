@@ -50,27 +50,139 @@
     border-color: var(--dashboard-border);
     color: var(--dashboard-text);
   }
+
+  .review-actions input,
+  .review-actions textarea {
+    margin-bottom: 8px;
+  }
+
+  .review-actions textarea {
+    min-height: 82px;
+    resize: vertical;
+    font-family: inherit;
+  }
+
+  .review-source-line {
+    display: block;
+    min-height: 1.5em;
+    padding: 1px 6px;
+  }
+
+  .review-source-line.is-target-line {
+    background: rgba(255, 190, 70, 0.3);
+    outline: 1px solid rgba(255, 190, 70, 0.7);
+  }
+
+  .project-review-layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .project-review-findings {
+    min-width: 0;
+  }
+
+  .project-file-panel {
+    position: sticky;
+    top: 20px;
+  }
+
+  .project-file-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .project-file-list li {
+    margin: 0;
+  }
+
+  .project-file-list a {
+    display: block;
+    padding: 9px 10px;
+    border-radius: 8px;
+    color: var(--dashboard-muted);
+    overflow-wrap: anywhere;
+  }
+
+  .project-file-list a:hover,
+  .project-file-list a.selected {
+    background: var(--dashboard-panel-strong);
+    color: var(--dashboard-accent);
+  }
+
+  .project-file-findings {
+    margin-left: 8px;
+    color: var(--dashboard-accent);
+    font-size: 12px;
+  }
+
+  @media (max-width: 760px) {
+    .project-review-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .project-file-panel {
+      position: static;
+      grid-row: 1;
+    }
+  }
+
+  .review-loading {
+    min-height: 55vh;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .review-loading-spinner {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 20px;
+    border: 4px solid var(--dashboard-border);
+    border-top-color: var(--dashboard-accent);
+    border-radius: 50%;
+    animation: review-spin 0.9s linear infinite;
+  }
+
+  @keyframes review-spin {
+    to { transform: rotate(360deg); }
+  }
 </style>
-{% macro finding_card(review, lines) %}
+{% if upload.submission_type in ['file', 'folder'] and upload.review_status == 'processing' %}
+<section class="card review-loading" aria-live="polite">
+  <span class="review-loading-spinner" aria-hidden="true"></span>
+  <h1>Reviewing your project</h1>
+  <p>Analyzing supported files. Findings will appear here when the review is complete.</p>
+</section>
+{% else %}
+{% macro finding_card(review, lines, project_review=false) %}
   <div class="card">
     <h3>{{ review.title }}</h3>
+    <p class="small-text"><strong>File:</strong> {{ review.filename or upload.filename or 'Pasted code' }}</p>
     <p>{{ review.description }}</p>
     <p class="small-text">
       Issue {{ review.id }} · Line {{ review.line }} · Severity: {{ review.severity }}
       · Confidence: {{ review.confidence }} · Source: {{ review.source }}
     </p>
     {% if review.suggested_fix %}<p><strong>Suggested fix:</strong> {{ review.suggested_fix }}</p>{% endif %}
-    {% if review.line and review.line <= lines|length %}
-      <pre class="highlighted-line review-source" hidden><span class="line-number">{{ review.line }}</span>{{ lines[review.line - 1] }}</pre>
-    {% endif %}
     <form method="post" action="/review/{{ upload.id }}/decision" class="review-actions">
       <input type="hidden" name="review_id" value="{{ review.id }}">
       <label>Reviewer note <input type="text" name="reviewer_note" maxlength="1000"></label>
       <label>Modified explanation <textarea name="modified_description" maxlength="4000" rows="3"></textarea></label>
       <label>Modified suggested fix <textarea name="modified_fix" maxlength="4000" rows="3"></textarea></label>
+      {% if project_review %}
+        <button type="button" class="link-button open-project-finding"
+                data-target-url="{{ url_for('review_page', upload_id=upload.id, filename=review.filename, _anchor='source-view') }}">Modify</button>
+      {% else %}
+        <a class="link-button" href="{{ url_for('edit_review', upload_id=upload.id, filename=review.filename or upload.filename, line=review.line) }}">Modify code</a>
+      {% endif %}
       <button type="submit" name="decision" value="accept">Accept</button>
       <button type="submit" name="decision" value="reject">Reject</button>
-      <button type="submit" name="decision" value="modify">Modify</button>
+      <button type="submit" name="decision" value="modify">Save modification</button>
     </form>
   </div>
 {% endmacro %}
@@ -82,30 +194,66 @@
   <label><input id="show-source-code" type="checkbox"> Show source code</label>
 </div>
 {% if upload.submission_type in ['file', 'folder'] %}
-  <p>{{ project_files|length }} supported source file(s) {% if upload.review_status == 'reviewed' %}analyzed{% else %}selected{% endif %}.</p>
+  <div class="project-review-layout">
+    <aside class="card project-file-panel" aria-label="Project files">
+      <h2>Project files</h2>
+      <ul class="project-file-list">
+        {% for file in project_files %}
+          <li>
+            <a href="{{ url_for('review_page', upload_id=upload.id, filename=file.relative_path, _anchor='source-view') }}"
+               class="{% if selected_project_file and selected_project_file.relative_path == file.relative_path %}selected{% endif %}"
+               style="padding-left: {{ 10 + (file.relative_path.count('/') * 14) }}px">
+              {{ file.relative_path }}
+              {% if file.findings %}<span class="project-file-findings">{{ file.findings|length }}</span>{% endif %}
+            </a>
+          </li>
+        {% else %}
+          <li>No supported files.</li>
+        {% endfor %}
+      </ul>
+    </aside>
+    <main class="project-review-findings">
+      <h2>AI Review Findings</h2>
+      <p>{{ project_files|length }} supported source file(s) {% if upload.review_status == 'reviewed' %}analyzed{% else %}selected{% endif %}.</p>
     {% if upload.review_status == 'uploaded' %}
       <p>Upload saved. Uploaded code is analyzed as text and is never executed.</p>
       <form method="post" action="/project/{{ upload.id }}/start">
         <button type="submit">Start Code Review</button>
       </form>
     {% endif %}
+      {% if selected_project_file %}
+        <section class="card source-card" id="source-view">
+          <h2>{{ selected_project_file.relative_path }}</h2>
+          <p>Finding lines are highlighted below.</p>
+          <pre class="source-code review-source">{% for line in selected_project_file.content_lines %}<span class="review-source-line{% if loop.index in selected_project_file.finding_lines %} is-target-line{% endif %}" id="selected-source-line-{{ loop.index }}"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
+{% endfor %}</pre>
+          <a class="link-button" href="{{ url_for('edit_review', upload_id=upload.id, filename=selected_project_file.relative_path, line=(selected_project_file.finding_lines[0] if selected_project_file.finding_lines else 1)) }}">Edit code</a>
+        </section>
+      {% endif %}
+      {% for file in project_files %}
+        {% for review in file.findings %}
+          {{ finding_card(review, file.content_lines, true) }}
+        {% endfor %}
+      {% endfor %}
+      {% if upload.review_status == 'reviewed' and not reviews %}
+        <div class="card"><p>No findings were reported by the selected analyzers for supported files.</p></div>
+      {% endif %}
+      {% if upload.review_status == 'failed' %}
+        <form method="post" action="/project/{{ upload.id }}/start">
+          <button type="submit">Retry Code Review</button>
+        </form>
+      {% endif %}
+    </main>
+  </div>
     {% if upload.review_status == 'failed' %}
       <form method="post" action="/project/{{ upload.id }}/start">
         <button type="submit">Retry Code Review</button>
       </form>
     {% endif %}
-  {% for file in project_files %}
-    {% for review in file.findings %}
-      {{ finding_card(review, file.content_lines) }}
-    {% endfor %}
-  {% endfor %}
-  {% if upload.review_status == 'reviewed' and not reviews %}
-    <div class="card"><p>No findings were reported by the selected analyzers for supported files.</p></div>
-  {% endif %}
 {% else %}
 <div class="card source-card">
   <h2>Submitted Code</h2>
-  <pre class="source-code review-source" hidden>{% for line in code_lines %}<span class="source-line"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
+  <pre class="source-code review-source" hidden id="submitted-source">{% for line in code_lines %}<span class="review-source-line" id="submitted-source-line-{{ loop.index }}"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
 {% endfor %}</pre>
 </div>
 {% if reviews %}
@@ -120,6 +268,7 @@
   </div>
 {% endif %}
 {% endif %}
+{% endif %}
 <script>
   (() => {
     const toggle = document.getElementById("show-source-code");
@@ -131,6 +280,12 @@
         }
       });
     }
+
+    document.querySelectorAll(".open-project-finding").forEach((button) => {
+      button.addEventListener("click", () => {
+        window.location.assign(button.dataset.targetUrl);
+      });
+    });
 
     const statusUrl = {% if upload.submission_type in ['file', 'folder'] and upload.review_status == 'processing' %}{{ url_for('project_review_status', upload_id=upload.id)|tojson }}{% else %}null{% endif %};
     if (statusUrl) {
