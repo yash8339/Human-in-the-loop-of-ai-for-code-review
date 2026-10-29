@@ -110,6 +110,16 @@
     color: var(--dashboard-accent);
   }
 
+  .ct-nav-links .nav-icon {
+    display: inline-flex;
+    width: 24px;
+    flex: 0 0 24px;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+  }
+
   /* Logout Button at Bottom */
   .ct-sidebar-footer {
     padding: 16px 20px;
@@ -311,7 +321,7 @@
 
   @media (max-width: 768px) {
     .ct-sidebar { width: 70px; }
-    .ct-sidebar-brand span, .ct-nav-links a span, .ct-logout-btn span { display: none; }
+    .ct-sidebar-brand span, .ct-nav-links a .nav-label, .ct-logout-btn span { display: none; }
     .ct-main-wrapper { margin-left: 70px; }
   }
 </style>
@@ -323,10 +333,10 @@
       AI <span>Review</span>
     </div>
     <ul class="ct-nav-links">
-      <li><a href="#" class="active">📊 <span>Dashboard</span></a></li>
-      <li><a href="#submission-form">⚡ <span>New Review</span></a></li>
-      <li><a href="/profile">👤 <span>Edit profile</span></a></li>
-      <li><a href="/history">🕘 <span>Review history</span></a></li>
+      <li><a href="#" class="active"><span class="nav-icon icon-dashboard" aria-hidden="true">📊</span><span class="nav-label">Dashboard</span></a></li>
+      <li><a href="#submission-form"><span class="nav-icon icon-review" aria-hidden="true">⚡</span><span class="nav-label">New Review</span></a></li>
+      <li><a href="/profile"><span class="nav-icon icon-profile" aria-hidden="true">👤</span><span class="nav-label">Edit profile</span></a></li>
+      <li><a href="/history"><span class="nav-icon icon-history" aria-hidden="true">🕘</span><span class="nav-label">Review history</span></a></li>
     </ul>
   </div>
   

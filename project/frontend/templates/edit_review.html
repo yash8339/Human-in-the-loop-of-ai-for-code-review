@@ -112,6 +112,10 @@
     <input type="hidden" name="language" value="{{ upload.language }}">
     <input type="hidden" name="model" value="{{ upload.model }}">
     <input type="hidden" name="analyzer" value="{{ upload.analyzer }}">
+    {% if return_upload_id and return_review_id %}
+      <input type="hidden" name="return_upload_id" value="{{ return_upload_id }}">
+      <input type="hidden" name="return_review_id" value="{{ return_review_id }}">
+    {% endif %}
     <div class="code-editor">
       <pre class="editor-line-numbers" aria-hidden="true"></pre>
       <div class="editor-input-wrap">

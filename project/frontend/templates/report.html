@@ -53,15 +53,112 @@
   .decision-reject .report-chart-bar { background: #f06b6b; }
   .decision-modify .report-chart-bar { background: #b89af3; }
   .decision-pending .report-chart-bar { background: #8992a3; }
+  .overview-ai .report-chart-bar { background: #67b9dc; }
+  .overview-static .report-chart-bar { background: #f2a35e; }
+  .overview-reviewed .report-chart-bar { background: #b89af3; }
+  .decision-donut-layout {
+    display: grid;
+    grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+    align-items: center;
+    gap: 24px;
+    margin-top: 20px;
+  }
+
+  .decision-donut {
+    display: block;
+    width: min(100%, 210px);
+    height: auto;
+  }
+
+  .decision-donut-track,
+  .decision-donut-segment {
+    fill: none;
+    stroke-width: 24;
+  }
+
+  .decision-donut-track {
+    stroke: rgba(255, 255, 255, 0.12);
+  }
+
+  .decision-donut-segment { stroke-linecap: butt; }
+
+  .decision-donut-total {
+    fill: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    text-anchor: middle;
+  }
+
+  .decision-donut-caption {
+    fill: rgba(255, 255, 255, 0.65);
+    font-size: 9px;
+    text-anchor: middle;
+  }
+
+  .decision-legend {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .decision-legend-item {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .decision-legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--decision-color);
+  }
+
+  .decision-legend-count {
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .decision-legend-item.decision-accept { --decision-color: #2d9a77; }
+  .decision-legend-item.decision-reject { --decision-color: #b9414b; }
+  .decision-legend-item.decision-modify { --decision-color: #7a52b5; }
+  .decision-legend-item.decision-pending { --decision-color: #8992a3; }
+
+  @media (max-width: 480px) {
+    .decision-donut-layout {
+      grid-template-columns: 1fr;
+      justify-items: center;
+    }
+
+    .decision-legend {
+      width: 100%;
+    }
+  }
 </style>
 <div class="card">
   <h1>Final Review Report</h1>
   <p><strong>Submission:</strong> {% if upload.submission_type == 'folder' %}Project review{% elif upload.submission_type == 'file' %}File review{% else %}Code review{% endif %} #{{ upload.id }} | <strong>Language:</strong> {{ upload.language }}</p>
   <a class="link-button" href="/dashboard">Back to dashboard</a>
-  <a class="link-button" href="/review/{{ upload.id }}">Back to findings</a>
+  <a class="link-button" href="/review/{{ upload.id }}">Back to all reviews</a>
   {% if upload.submission_type == 'code' %}<a class="link-button" href="/review/{{ upload.id }}/edit">Modify code and review again</a>{% endif %}
   {% if upload.submission_type == 'code' %}<label><input id="show-source-code" type="checkbox"> Show source code</label>{% endif %}
 </div>
+<section class="card report-chart" aria-labelledby="review-overview-chart-title">
+  <h2 id="review-overview-chart-title">Review Overview</h2>
+  <p>Total findings, analysis sources, and findings marked by the reviewer.</p>
+  {% for item in review_overview_chart %}
+    <div class="report-chart-row {{ item.class }}">
+      <span class="report-chart-label">{{ item.label }}</span>
+      <span class="report-chart-track" aria-hidden="true">
+        <span class="report-chart-bar" style="width: {{ item.width }}%"></span>
+      </span>
+      <span class="report-chart-count">{{ item.count }}</span>
+    </div>
+  {% endfor %}
+</section>
 <div class="summary-grid">
   <div class="summary-card">
     <h2>Accuracy</h2>
@@ -74,10 +171,6 @@
   <div class="summary-card">
     <h2>Recall</h2>
     <p>{{ report.recall }}</p>
-  </div>
-  <div class="summary-card">
-    <h2>False Positive Rate</h2>
-    <p>{{ report.false_positive_rate }}</p>
   </div>
   <div class="summary-card">
     <h2>Review Time</h2>
@@ -101,15 +194,33 @@
   <section class="card report-chart" aria-labelledby="decision-chart-title">
     <h2 id="decision-chart-title">Human Review Decisions</h2>
     <p>Share of findings that are accepted, rejected, modified, or still pending.</p>
-    {% for item in decision_chart %}
-      <div class="report-chart-row decision-{{ item.label|lower }}">
-        <span class="report-chart-label">{{ item.label }}</span>
-        <span class="report-chart-track" aria-hidden="true">
-          <span class="report-chart-bar" style="width: {{ item.width }}%"></span>
-        </span>
-        <span class="report-chart-count">{{ item.count }}</span>
-      </div>
-    {% endfor %}
+    <div class="decision-donut-layout">
+      <svg class="decision-donut"
+           viewBox="0 0 200 200"
+           role="img"
+           aria-label="{% for item in decision_chart %}{{ item.label }}: {{ item.count }}{% if not loop.last %}, {% endif %}{% endfor %}">
+        <circle class="decision-donut-track" cx="100" cy="100" r="72"></circle>
+        {% for item in decision_chart if item.count %}
+          <circle class="decision-donut-segment {{ item.class }}"
+                  cx="100" cy="100" r="72"
+                  transform="rotate(-90 100 100)"
+                  stroke="{{ item.color }}"
+                  stroke-dasharray="{{ item.segment_length }} {{ 452.3893421169302 - item.segment_length }}"
+                  stroke-dashoffset="{{ 0 - item.segment_offset }}"></circle>
+        {% endfor %}
+        <text class="decision-donut-total" x="100" y="97">{{ reviews|length }}</text>
+        <text class="decision-donut-caption" x="100" y="117">Total findings</text>
+      </svg>
+      <ul class="decision-legend">
+        {% for item in decision_chart %}
+          <li class="decision-legend-item decision-{{ item.label|lower }}">
+            <span class="decision-legend-swatch" aria-hidden="true"></span>
+            <span>{{ item.label }}</span>
+            <span class="decision-legend-count">{{ item.count }} ({{ item.width }}%)</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
   </section>
 </div>
 {% if upload.submission_type in ['file', 'folder'] %}

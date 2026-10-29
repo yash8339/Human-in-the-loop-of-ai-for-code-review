@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlsplit
+
 from project.backend import main
 from project.backend.project_review import MAX_PROJECT_REQUEST_SIZE
 from project.backend.utils.schema import ReviewFinding
@@ -14,6 +16,9 @@ class _FakeCursor:
         self.one = None
         self.rows = []
         self.statements = []
+        self.review_status = "uploaded"
+        self.submission_type = "folder"
+        self.upload_content = ""
         self.project_files = project_files or [
             {"relative_path": "src/app.py", "content": "print('hello')", "supported": 1}
         ]
@@ -26,13 +31,13 @@ class _FakeCursor:
             self.one = {
                 "id": 12,
                 "user_id": 7,
-                "submission_type": "folder",
-                "review_status": "uploaded",
+                "submission_type": self.submission_type,
+                "review_status": self.review_status,
                 "analyzer": "semgrep",
                 "model": "OpenAI",
                 "filename": "sample-project",
                 "language": "mixed",
-                "content": "",
+                "content": self.upload_content,
             }
         elif normalized_query.startswith("select review_status from uploads"):
             self.one = {"review_status": "processing"}
@@ -148,6 +153,38 @@ def test_project_finding_modify_opens_source_editor_at_finding_line(monkeypatch)
     assert b"print(&#39;hello&#39;)" in response.data or b"print('hello')" in response.data
 
 
+def test_saving_code_from_modify_returns_to_all_original_findings(monkeypatch):
+    connection = _FakeConnection()
+    connection.fake_cursor.submission_type = "code"
+    connection.fake_cursor.upload_content = "old source"
+    monkeypatch.setattr(main, "get_db", lambda: connection)
+    monkeypatch.setattr(main, "_create_upload_review", lambda *_args: 99)
+    modified_findings = []
+    monkeypatch.setattr(
+        main,
+        "_record_modified_finding",
+        lambda upload_id, review_id: modified_findings.append((upload_id, review_id)),
+    )
+
+    client = main.app.test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["user_id"] = 7
+
+    response = client.post(
+        "/review/12/edit",
+        data={
+            "filename": "sample.py",
+            "code": "updated source",
+            "return_upload_id": "12",
+            "return_review_id": "32",
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/review/12")
+    assert modified_findings == [(12, 32)]
+
+
 def test_project_review_opens_selected_file_and_highlights_all_finding_lines(monkeypatch):
     connection = _FakeConnection(
         [{"relative_path": "src/app.py", "content": "first\nsecond\nthird", "supported": 1}]
@@ -168,8 +205,14 @@ def test_project_review_opens_selected_file_and_highlights_all_finding_lines(mon
     assert b"is-target-line" in response.data
     assert b">Edit code</a>" in response.data
     assert b"/review/12/edit?filename=src/app.py" in response.data
-    assert b'class="link-button open-project-finding"' in response.data
-    assert b'data-target-url="/review/12?filename=src/app.py#source-view"' in response.data
+    assert b'<button type="submit" name="decision" value="modify">Modify</button>' in response.data
+    assert b"Modified explanation" not in response.data
+    assert b"Save modification" not in response.data
+    assert response.data.count(b'value="modify">Modify</button>') == 1
+    assert b'class="save-decision-button" data-decision="accept">Accept</button>' in response.data
+    assert b'class="save-decision-button" data-decision="reject">Reject</button>' in response.data
+    assert b'formData.set("decision", decision)' in response.data
+    assert b"new FormData(form, submitter)" not in response.data
     assert response.data.index(b'aria-label="Project files"') < response.data.index(
         b'<main class="project-review-findings">'
     )
@@ -197,11 +240,296 @@ def test_final_report_renders_severity_and_human_decision_charts(monkeypatch):
     assert response.status_code == 200
     assert b"Findings by Severity" in response.data
     assert b"Human Review Decisions" in response.data
+    assert b"Review Overview" in response.data
+    assert b'class="report-chart-row overview-total"' in response.data
+    assert b'class="report-chart-row overview-ai"' in response.data
+    assert b'class="report-chart-row overview-static"' in response.data
+    assert b'class="report-chart-row overview-reviewed"' in response.data
+    assert b"Reviewed / marked" in response.data
     assert b'class="report-chart-row severity-high"' in response.data
-    assert b'class="report-chart-row decision-accept"' in response.data
-    assert b'class="report-chart-row decision-modify"' in response.data
-    assert b'class="report-chart-row decision-pending"' in response.data
+    assert b'class="decision-legend-item decision-accept"' in response.data
+    assert b'class="decision-legend-item decision-modify"' in response.data
+    assert b'class="decision-legend-item decision-pending"' in response.data
+    assert b'class="decision-donut-layout"' in response.data
+    assert b'<svg class="decision-donut"' in response.data
+    assert b'<circle class="decision-donut-segment decision-accept"' in response.data
+    assert b'<circle class="decision-donut-segment decision-modify"' in response.data
+    assert b'stroke="#2d9a77"' in response.data
+    assert b'stroke="#7a52b5"' in response.data
+    assert b'stroke-dasharray="226.1946710584651 226.1946710584651"' in response.data
     assert b'style="width: 50.0%"' in response.data
+    assert response.data.index(b'id="review-overview-chart-title"') < response.data.index(b'class="summary-grid"')
+    assert b"<h2>Total Findings</h2>" not in response.data
+    assert b"<h2>AI Reviews</h2>" not in response.data
+    assert b"<h2>Static Analysis Reviews</h2>" not in response.data
+    assert b"False Positive Rate" not in response.data
+
+
+def test_review_page_offers_generate_report_after_project_analysis(monkeypatch):
+    connection = _FakeConnection()
+    connection.fake_cursor.review_status = "reviewed"
+    monkeypatch.setattr(main, "get_db", lambda: connection)
+
+    client = main.app.test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["user_id"] = 7
+
+    response = client.get("/review/12")
+
+    assert response.status_code == 200
+    assert b"Total findings:</strong> 2" in response.data
+    assert b'data-metric=' not in response.data
+    assert b">Generate Report</a>" in response.data
+    assert b'class="nav-icon icon-dashboard"' in response.data
+    assert b'class="nav-icon icon-review"' in response.data
+    assert b'class="nav-icon icon-profile"' in response.data
+    assert b'class="nav-icon icon-history"' in response.data
+
+
+def test_review_page_decision_summary_renders_with_no_saved_decisions(monkeypatch):
+    connection = _FakeConnection()
+    connection.fake_cursor.submission_type = "code"
+    connection.fake_cursor.upload_content = "example source"
+    monkeypatch.setattr(main, "get_db", lambda: connection)
+    monkeypatch.setattr(main, "load_decisions", lambda _upload_id: [])
+
+    client = main.app.test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["user_id"] = 7
+
+    response = client.get("/review/12")
+
+    assert response.status_code == 200
+    assert b"Marked:</strong>" not in response.data
+    assert b"Accepted:</strong>" not in response.data
+    assert b"Rejected:</strong>" not in response.data
+    assert b"Modified:</strong>" not in response.data
+    assert b"Acceptance Rate" not in response.data
+    assert b"Accepted Findings (%)" not in response.data
+    assert b"Review Completion Rate" not in response.data
+    assert b'id="show-source-code"' not in response.data
+    assert b'<pre class="source-code review-source" id="source-view">' in response.data
+    assert b"Code saved. A new review is running" not in response.data
+    assert b"Open the new code review" not in response.data
+
+
+def test_ai_modify_page_shows_only_finding_code_suggestion_and_edit_link(monkeypatch):
+    connection = _FakeConnection()
+    connection.fake_cursor.submission_type = "code"
+    connection.fake_cursor.upload_content = "first\nsecond\nthird"
+    monkeypatch.setattr(main, "get_db", lambda: connection)
+
+    client = main.app.test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["user_id"] = 7
+
+    response = client.get("/review/12/finding/32/modify")
+
+    assert response.status_code == 200
+    assert b"Modify AI Finding" in response.data
+    assert b"AI suggestion for this finding" in response.data
+    assert b"<p>Validate input.</p>" in response.data
+    assert b"finding-source-line is-target-line" in response.data
+    assert b'href="/review/12/edit?filename=src/app.py&amp;line=3&amp;return_upload_id=12&amp;return_review_id=32">Edit code</a>' in response.data
+    assert b"unsafe-call" not in response.data
+    assert b"Review found a risky call." not in response.data
+    assert response.data.index(b"</pre>") < response.data.index(b">Edit code</a>")
+    assert response.data.index(b">Edit code</a>") < response.data.index(b"AI suggestion for this finding")
+
+
+def test_saving_finding_decision_returns_to_findings_page(monkeypatch):
+    class DecisionCursor(_FakeCursor):
+        def execute(self, query, params=()):
+            super().execute(query, params)
+            normalized_query = " ".join(query.split()).lower()
+            if normalized_query.startswith("select r.* from reviews"):
+                self.one = {
+                    "id": 31,
+                    "upload_id": 12,
+                    "title": "unsafe-call",
+                    "filename": "src/app.py",
+                }
+            elif normalized_query.startswith("select id from human_reviews"):
+                self.one = None
+
+    connection = _FakeConnection()
+    connection.fake_cursor = DecisionCursor()
+    monkeypatch.setattr(main, "get_db", lambda: connection)
+    monkeypatch.setattr(main, "save_decision", lambda *_args: None)
+
+    client = main.app.test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["user_id"] = 7
+
+    response = client.post(
+        "/review/12/decision",
+        data={
+            "review_id": "31",
+            "return_filename": "src/app.py",
+            "decision": "accept",
+        },
+    )
+
+    assert response.status_code == 302
+    redirect_parts = urlsplit(response.headers["Location"])
+    assert redirect_parts.path == "/review/12"
+    assert parse_qs(redirect_parts.query) == {"filename": ["src/app.py"]}
+    assert connection.committed
+
+
+def test_ajax_accept_or_reject_returns_json_not_report_redirect(monkeypatch):
+    class DecisionCursor(_FakeCursor):
+        def execute(self, query, params=()):
+            super().execute(query, params)
+            normalized_query = " ".join(query.split()).lower()
+            if normalized_query.startswith("select r.* from reviews"):
+                self.one = {
+                    "id": 31,
+                    "upload_id": 12,
+                    "title": "unsafe-call",
+                    "source": "static",
+                }
+            elif normalized_query.startswith("select id from human_reviews"):
+                self.one = None
+
+    connection = _FakeConnection()
+    connection.fake_cursor = DecisionCursor()
+    monkeypatch.setattr(main, "get_db", lambda: connection)
+    monkeypatch.setattr(main, "save_decision", lambda *_args: None)
+
+    client = main.app.test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["user_id"] = 7
+
+    response = client.post(
+        "/review/12/decision",
+        data={"review_id": "31", "decision": "reject"},
+        headers={"X-Requested-With": "XMLHttpRequest", "Accept": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {"decision": "reject"}
+    assert "Location" not in response.headers
+    assert connection.committed
+
+
+def test_ajax_decision_returns_json_when_session_has_expired():
+    client = main.app.test_client()
+
+    response = client.post(
+        "/review/12/decision",
+        data={"review_id": "31", "decision": "accept"},
+        headers={"X-Requested-With": "XMLHttpRequest", "Accept": "application/json"},
+    )
+
+    assert response.status_code == 401
+    assert response.get_json() == {"error": "Your session has expired. Please sign in again."}
+
+
+def test_ai_modify_action_opens_focused_modify_page(monkeypatch):
+    class AIDecisionCursor(_FakeCursor):
+        def execute(self, query, params=()):
+            super().execute(query, params)
+            normalized_query = " ".join(query.split()).lower()
+            if normalized_query.startswith("select r.* from reviews"):
+                self.one = {
+                    "id": 32,
+                    "upload_id": 12,
+                    "title": "missing-validation",
+                    "source": "ai",
+                }
+            elif normalized_query.startswith("select id from human_reviews"):
+                self.one = None
+
+    connection = _FakeConnection()
+    connection.fake_cursor = AIDecisionCursor()
+    saved_decisions = []
+    monkeypatch.setattr(main, "get_db", lambda: connection)
+    monkeypatch.setattr(main, "save_decision", lambda *args: saved_decisions.append(args))
+
+    client = main.app.test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["user_id"] = 7
+
+    response = client.post(
+        "/review/12/decision",
+        data={
+            "review_id": "32",
+            "decision": "modify",
+            "return_filename": "src/app.py",
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        "/review/12/finding/32/modify"
+    )
+    assert saved_decisions == []
+
+
+def test_review_cards_show_saved_decision_colors_and_counts(monkeypatch):
+    connection = _FakeConnection()
+    monkeypatch.setattr(main, "get_db", lambda: connection)
+    monkeypatch.setattr(
+        main,
+        "load_decisions",
+        lambda _upload_id: [
+            main.HumanDecision("issue-031", "accept"),
+            main.HumanDecision("issue-032", "reject"),
+        ],
+    )
+
+    client = main.app.test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["user_id"] = 7
+
+    response = client.get("/review/12")
+
+    assert response.status_code == 200
+    assert b"finding-card decision-accept" in response.data
+    assert b"finding-card decision-reject" in response.data
+    assert b"background: rgba(45, 154, 119, 0.38)" in response.data
+    assert b"background: rgba(185, 65, 75, 0.38)" in response.data
+    assert b"background: rgba(122, 82, 181, 0.4)" in response.data
+    assert b"Marked:</strong>" not in response.data
+    assert b"Accepted:</strong>" not in response.data
+    assert b"Rejected:</strong>" not in response.data
+
+
+def test_static_finding_cannot_be_saved_as_modify(monkeypatch):
+    class StaticDecisionCursor(_FakeCursor):
+        def execute(self, query, params=()):
+            super().execute(query, params)
+            if "select r.* from reviews" in " ".join(query.split()).lower():
+                self.one = {
+                    "id": 31,
+                    "upload_id": 12,
+                    "title": "unsafe-call",
+                    "source": "static",
+                }
+
+    connection = _FakeConnection()
+    connection.fake_cursor = StaticDecisionCursor()
+    saved_decisions = []
+    monkeypatch.setattr(main, "get_db", lambda: connection)
+    monkeypatch.setattr(main, "save_decision", lambda *args: saved_decisions.append(args))
+
+    client = main.app.test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["user_id"] = 7
+
+    response = client.post(
+        "/review/12/decision",
+        data={
+            "review_id": "31",
+            "decision": "modify",
+            "modified_description": "Changed explanation",
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/review/12")
+    assert saved_decisions == []
 
 
 def test_saving_project_code_starts_review_and_returns_to_selected_file(monkeypatch):

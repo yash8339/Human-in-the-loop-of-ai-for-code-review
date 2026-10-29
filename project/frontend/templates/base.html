@@ -266,6 +266,15 @@
       text-transform: uppercase;
       transition: all 0.2s ease;
     }
+    body.app-shell.secondary-page .nav-icon {
+      display: inline-flex;
+      width: 24px;
+      flex: 0 0 24px;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      line-height: 1;
+    }
     body.app-shell.secondary-page .ct-nav-links a:hover,
     body.app-shell.secondary-page .ct-nav-links a.active {
       background: rgba(103, 216, 181, 0.15);
@@ -316,7 +325,7 @@
       }
       body.app-shell.secondary-page .ct-sidebar { width: 70px; }
       body.app-shell.secondary-page .ct-sidebar-brand span,
-      body.app-shell.secondary-page .ct-nav-links a span,
+      body.app-shell.secondary-page .ct-nav-links a .nav-label,
       body.app-shell.secondary-page .ct-logout-btn span { display: none; }
     }
   </style>
@@ -327,10 +336,10 @@
       <div>
         <div class="ct-sidebar-brand">AI <span>Review</span></div>
         <ul class="ct-nav-links">
-          <li><a href="/dashboard">📊 <span>Dashboard</span></a></li>
-          <li><a href="/dashboard#submission-form">⚡ <span>New Review</span></a></li>
-          <li><a href="/profile"{% if request.path == "/profile" %} class="active"{% endif %}>👤 <span>Edit profile</span></a></li>
-          <li><a href="/history"{% if request.path == "/history" %} class="active"{% endif %}>🕘 <span>Review history</span></a></li>
+          <li><a href="/dashboard"{% if request.path == "/dashboard" %} class="active"{% endif %}><span class="nav-icon icon-dashboard" aria-hidden="true">📊</span><span class="nav-label">Dashboard</span></a></li>
+          <li><a href="/dashboard#submission-form"><span class="nav-icon icon-review" aria-hidden="true">⚡</span><span class="nav-label">New Review</span></a></li>
+          <li><a href="/profile"{% if request.path == "/profile" %} class="active"{% endif %}><span class="nav-icon icon-profile" aria-hidden="true">👤</span><span class="nav-label">Edit profile</span></a></li>
+          <li><a href="/history"{% if request.path == "/history" %} class="active"{% endif %}><span class="nav-icon icon-history" aria-hidden="true">🕘</span><span class="nav-label">Review history</span></a></li>
         </ul>
       </div>
       <div class="ct-sidebar-footer">

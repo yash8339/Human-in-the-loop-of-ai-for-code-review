@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -207,6 +208,8 @@ def get_db():
 
 def require_login():
     if "user_id" not in session:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"error": "Your session has expired. Please sign in again."}), 401
         return redirect(url_for("home"))
     return None
 
@@ -499,6 +502,9 @@ def edit_review(upload_id):
     if request.method == "POST":
         code = request.form.get("code", "")
         filename = request.form.get("filename", upload["filename"])
+        return_upload_id = request.form.get("return_upload_id", type=int)
+        return_review_id = request.form.get("return_review_id", type=int)
+        return_to_findings = return_upload_id == upload_id and return_review_id is not None
         if upload.get("submission_type") in {"file", "folder"}:
             updated_files = [
                 (project_file["relative_path"], (
@@ -517,6 +523,8 @@ def edit_review(upload_id):
                     editor_code=code,
                     target_filename=filename,
                     highlight_line=request.form.get("line", type=int),
+                    return_upload_id=return_upload_id,
+                    return_review_id=return_review_id,
                     editor_language=(
                         Path(filename).suffix.lstrip(".").lower()
                         if upload.get("submission_type") in {"file", "folder"}
@@ -543,6 +551,9 @@ def edit_review(upload_id):
                 upload["analyzer"],
                 upload["model"],
             )
+            if return_to_findings:
+                _record_modified_finding(upload_id, return_review_id)
+                return redirect(url_for("review_page", upload_id=upload_id))
             return redirect(url_for(
                 "review_page",
                 upload_id=new_upload_id,
@@ -557,6 +568,9 @@ def edit_review(upload_id):
             request.form.get("analyzer", upload["analyzer"]),
             filename,
         )
+        if return_to_findings:
+            _record_modified_finding(upload_id, return_review_id)
+            return redirect(url_for("review_page", upload_id=upload_id))
         return redirect(url_for("review_page", upload_id=new_upload_id))
 
     return render_template(
@@ -565,6 +579,8 @@ def edit_review(upload_id):
         editor_code=editor_code,
         target_filename=target_filename or upload["filename"],
         highlight_line=request.args.get("line", type=int),
+        return_upload_id=request.args.get("return_upload_id", type=int),
+        return_review_id=request.args.get("return_review_id", type=int),
         editor_language=(
             Path(target_filename).suffix.lstrip(".").lower()
             if upload.get("submission_type") in {"file", "folder"}
@@ -572,6 +588,117 @@ def edit_review(upload_id):
         ),
         error=None,
     )
+
+
+@app.route("/review/<int:upload_id>/finding/<int:review_id>/modify")
+def modify_finding(upload_id, review_id):
+    redirect_result = require_login()
+    if redirect_result is not None:
+        return redirect_result
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM uploads WHERE id = %s AND user_id = %s",
+        (upload_id, session["user_id"]),
+    )
+    upload = cursor.fetchone()
+    if not upload:
+        cursor.close()
+        conn.close()
+        return redirect(url_for("dashboard"))
+    cursor.execute("SELECT * FROM reviews WHERE upload_id = %s", (upload_id,))
+    reviews = cursor.fetchall()
+    review = next((item for item in reviews if item.get("id") == review_id), None)
+    if not review or str(review.get("source", "")).strip().lower() != "ai":
+        cursor.close()
+        conn.close()
+        return redirect(url_for("review_page", upload_id=upload_id))
+
+    source_code = upload["content"]
+    if upload.get("submission_type") in {"file", "folder"}:
+        cursor.execute(
+            "SELECT relative_path, content, supported FROM project_files WHERE upload_id = %s ORDER BY relative_path",
+            (upload_id,),
+        )
+        project_files = cursor.fetchall()
+        matching_file = next(
+            (
+                project_file for project_file in project_files
+                if project_file["relative_path"] == review.get("filename")
+                and project_file["supported"]
+            ),
+            None,
+        )
+        if not matching_file:
+            cursor.close()
+            conn.close()
+            return redirect(url_for("review_page", upload_id=upload_id))
+        source_code = matching_file["content"]
+    cursor.close()
+    conn.close()
+    return render_template(
+        "modify_finding.html",
+        upload=upload,
+        review=review,
+        source_lines=source_code.splitlines(),
+    )
+
+
+def _record_modified_finding(upload_id, review_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT r.* FROM reviews r
+        JOIN uploads u ON u.id = r.upload_id
+        WHERE r.id = %s AND r.upload_id = %s AND u.user_id = %s
+        """,
+        (review_id, upload_id, session["user_id"]),
+    )
+    review = cursor.fetchone()
+    if review and str(review.get("source", "")).strip().lower() == "ai":
+        decision = HumanDecision(f"issue-{review_id:03d}", "modify")
+        save_decision(upload_id, decision)
+        cursor.execute("SELECT id FROM human_reviews WHERE review_id = %s ORDER BY id DESC LIMIT 1", (review_id,))
+        existing_decision = cursor.fetchone()
+        if existing_decision:
+            cursor.execute(
+                """
+                UPDATE human_reviews
+                SET decision = %s, reviewer_name = %s, reviewer_note = %s,
+                    modified_description = %s, modified_fix = %s
+                WHERE id = %s
+                """,
+                (
+                    decision.status,
+                    session.get("user_name", "Reviewer"),
+                    "",
+                    "",
+                    "",
+                    existing_decision["id"],
+                ),
+            )
+        else:
+            cursor.execute(
+                """
+                INSERT INTO human_reviews (
+                    review_id, decision, reviewer_name, reviewer_note,
+                    modified_description, modified_fix
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    review_id,
+                    decision.status,
+                    session.get("user_name", "Reviewer"),
+                    "",
+                    "",
+                    "",
+                ),
+            )
+        conn.commit()
+    cursor.close()
+    conn.close()
 
 
 @app.route("/review/<int:upload_id>")
@@ -625,6 +752,14 @@ def review_page(upload_id):
         ),
         None,
     )
+    saved_decisions = load_decisions(upload_id)
+    decision_by_issue = {decision.issue_id: decision.status for decision in saved_decisions}
+    for review in reviews:
+        review["decision_status"] = decision_by_issue.get(f"issue-{review['id']:03d}", "")
+    decision_counts = {
+        status: sum(review["decision_status"] == status for review in reviews)
+        for status in ("accept", "reject", "modify")
+    }
     return render_template(
         "review.html",
         upload=upload,
@@ -632,6 +767,7 @@ def review_page(upload_id):
         code_lines=upload["content"].splitlines(),
         project_files=files_with_reviews,
         selected_project_file=selected_project_file,
+        decision_counts=decision_counts,
     )
 
 
@@ -842,6 +978,11 @@ def submit_decision(upload_id):
         return redirect_result
 
     review_id = request.form.get("review_id")
+    return_filename = request.form.get("return_filename", "").strip()
+    review_url_params = {}
+    if return_filename:
+        review_url_params["filename"] = return_filename
+    review_url = url_for("review_page", upload_id=upload_id, **review_url_params)
     decision = request.form.get("decision", "accept").strip().lower()
     reviewer_note = request.form.get("reviewer_note", "").strip()
     modified_description = request.form.get("modified_description", "").strip()
@@ -855,9 +996,9 @@ def submit_decision(upload_id):
             modified_fix,
         )
     except (TypeError, ValueError):
-        return redirect(url_for("review_page", upload_id=upload_id))
-    if decision == "modify" and not (modified_description or modified_fix):
-        return redirect(url_for("review_page", upload_id=upload_id))
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"error": "Invalid review decision."}), 400
+        return redirect(review_url)
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
@@ -869,6 +1010,18 @@ def submit_decision(upload_id):
         (review_id, upload_id, session["user_id"]),
     )
     review = cursor.fetchone()
+    if review and decision == "modify" and str(review.get("source", "")).strip().lower() != "ai":
+        cursor.close()
+        conn.close()
+        return redirect(review_url)
+    if review and decision == "modify":
+        cursor.close()
+        conn.close()
+        return redirect(url_for(
+            "modify_finding",
+            upload_id=upload_id,
+            review_id=review_id,
+        ))
     if review:
         save_decision(upload_id, human_decision)
         cursor.execute("SELECT id FROM human_reviews WHERE review_id = %s ORDER BY id DESC LIMIT 1", (review_id,))
@@ -910,7 +1063,11 @@ def submit_decision(upload_id):
         conn.commit()
     cursor.close()
     conn.close()
-    return redirect(url_for("report_page", upload_id=upload_id))
+    if not review and request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"error": "Review finding not found."}), 404
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"decision": decision})
+    return redirect(review_url)
 
 
 @app.route("/report/<int:upload_id>")
@@ -962,7 +1119,10 @@ def report_page(upload_id):
     decisions = load_decisions(upload_id)
     generated_report = generate_final_report(ReviewResult(findings=findings), decisions)
     if stored_report:
-        generated_report.update({"precision_score": stored_report["precision_score"], "recall": stored_report["recall"], "false_positive_rate": stored_report["false_positive_rate"]})
+        generated_report.update({
+            "precision_score": stored_report["precision_score"],
+            "recall": stored_report["recall"],
+        })
     severity_chart = [
         {
             "label": severity.title(),
@@ -979,11 +1139,65 @@ def report_page(upload_id):
         decision_counts[decision.status] += 1
     decision_counts["pending"] = max(0, len(reviews) - len(decisions))
     decision_chart = [
-        {"label": status.title(), "count": decision_counts[status]}
+        {
+            "label": status.title(),
+            "count": decision_counts[status],
+            "class": f"decision-{status}",
+        }
         for status in ("accept", "reject", "modify", "pending")
     ]
+    decision_colors = {
+        "accept": "#2d9a77",
+        "reject": "#b9414b",
+        "modify": "#7a52b5",
+        "pending": "#8992a3",
+    }
+    donut_circumference = math.tau * 72
+    segment_offset = 0.0
     for item in decision_chart:
         item["width"] = round(item["count"] / len(reviews) * 100, 1) if reviews else 0
+        item["color"] = decision_colors[item["label"].lower()]
+        item["segment_length"] = (
+            item["count"] / len(reviews) * donut_circumference if reviews else 0
+        )
+        item["segment_offset"] = segment_offset
+        segment_offset += item["segment_length"]
+
+    review_overview_chart = [
+        {
+            "label": "Total findings",
+            "count": len(reviews),
+            "class": "overview-total",
+        },
+        {
+            "label": "AI reviews",
+            "count": sum(
+                str(review.get("source", "")).strip().lower() == "ai"
+                for review in reviews
+            ),
+            "class": "overview-ai",
+        },
+        {
+            "label": "Static analysis",
+            "count": sum(
+                str(review.get("source", "")).strip().lower() == "static"
+                for review in reviews
+            ),
+            "class": "overview-static",
+        },
+        {
+            "label": "Reviewed / marked",
+            "count": sum(decision_counts[status] for status in ("accept", "reject", "modify")),
+            "class": "overview-reviewed",
+        },
+    ]
+    max_overview_count = max((item["count"] for item in review_overview_chart), default=0)
+    for item in review_overview_chart:
+        item["width"] = (
+            round(item["count"] / max_overview_count * 100, 1)
+            if max_overview_count
+            else 0
+        )
 
     return render_template(
         "report.html",
@@ -993,6 +1207,7 @@ def report_page(upload_id):
         report=generated_report,
         severity_chart=severity_chart,
         decision_chart=decision_chart,
+        review_overview_chart=review_overview_chart,
         code_lines=upload["content"].splitlines(),
         project_files=project_files,
     )

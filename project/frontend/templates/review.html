@@ -2,6 +2,7 @@
 {% block title %}Review Findings | AI Code Review{% endblock %}
 {% block body_class %}app-shell secondary-page{% endblock %}
 {% block content %}
+{% set decision_counts = decision_counts|default({'accept': 0, 'reject': 0, 'modify': 0}) %}
 <style>
   :root {
     --dashboard-bg: #160f22;
@@ -119,6 +120,43 @@
     font-size: 12px;
   }
 
+  .finding-card.decision-accept {
+    border-color: rgba(103, 216, 181, 0.9);
+    background: rgba(45, 154, 119, 0.38);
+  }
+
+  .finding-card.decision-reject {
+    border-color: rgba(240, 107, 107, 0.9);
+    background: rgba(185, 65, 75, 0.38);
+  }
+
+  .finding-card.decision-modify {
+    border-color: rgba(184, 154, 243, 0.95);
+    background: rgba(122, 82, 181, 0.4);
+  }
+
+  .finding-decision-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 12px;
+    text-transform: capitalize;
+  }
+
+  .decision-accept .finding-decision-badge {
+    background: rgba(45, 154, 119, 0.75);
+  }
+
+  .decision-reject .finding-decision-badge {
+    background: rgba(185, 65, 75, 0.78);
+  }
+
+  .decision-modify .finding-decision-badge {
+    background: rgba(122, 82, 181, 0.8);
+  }
+
   @media (max-width: 760px) {
     .project-review-layout {
       grid-template-columns: 1fr;
@@ -160,8 +198,8 @@
 </section>
 {% else %}
 {% macro finding_card(review, lines, project_review=false) %}
-  <div class="card">
-    <h3>{{ review.title }}</h3>
+  <div class="card finding-card{% if review.decision_status %} decision-{{ review.decision_status }}{% endif %}">
+    <h3>{{ review.title }}{% if review.decision_status %}<span class="finding-decision-badge">Marked {{ review.decision_status }}</span>{% endif %}</h3>
     <p class="small-text"><strong>File:</strong> {{ review.filename or upload.filename or 'Pasted code' }}</p>
     <p>{{ review.description }}</p>
     <p class="small-text">
@@ -169,29 +207,26 @@
       · Confidence: {{ review.confidence }} · Source: {{ review.source }}
     </p>
     {% if review.suggested_fix %}<p><strong>Suggested fix:</strong> {{ review.suggested_fix }}</p>{% endif %}
-    <form method="post" action="/review/{{ upload.id }}/decision" class="review-actions">
+    <form method="post" action="/review/{{ upload.id }}/decision" class="review-actions decision-form" data-review-id="{{ review.id }}">
       <input type="hidden" name="review_id" value="{{ review.id }}">
+      {% if project_review %}<input type="hidden" name="return_filename" value="{{ review.filename }}">{% endif %}
       <label>Reviewer note <input type="text" name="reviewer_note" maxlength="1000"></label>
-      <label>Modified explanation <textarea name="modified_description" maxlength="4000" rows="3"></textarea></label>
-      <label>Modified suggested fix <textarea name="modified_fix" maxlength="4000" rows="3"></textarea></label>
-      {% if project_review %}
-        <button type="button" class="link-button open-project-finding"
-                data-target-url="{{ url_for('review_page', upload_id=upload.id, filename=review.filename, _anchor='source-view') }}">Modify</button>
-      {% else %}
-        <a class="link-button" href="{{ url_for('edit_review', upload_id=upload.id, filename=review.filename or upload.filename, line=review.line) }}">Modify code</a>
+      <button type="button" class="save-decision-button" data-decision="accept">Accept</button>
+      <button type="button" class="save-decision-button" data-decision="reject">Reject</button>
+      {% if review.source|lower == 'ai' %}
+        <button type="submit" name="decision" value="modify">Modify</button>
       {% endif %}
-      <button type="submit" name="decision" value="accept">Accept</button>
-      <button type="submit" name="decision" value="reject">Reject</button>
-      <button type="submit" name="decision" value="modify">Save modification</button>
     </form>
   </div>
 {% endmacro %}
 <div class="card">
   <h1>Review Findings</h1>
   <p><strong>Submission:</strong> {% if upload.submission_type == 'folder' %}Project review{% elif upload.submission_type == 'file' %}File review{% else %}Code review{% endif %} #{{ upload.id }} | <strong>Language:</strong> {{ upload.language }} | <strong>Model:</strong> {{ upload.model }} | <strong>Analyzer:</strong> {{ upload.analyzer }}</p>
+  {% set reviewed_count = decision_counts.accept + decision_counts.reject + decision_counts.modify %}
+  <p><strong>Total findings:</strong> {{ reviews|length }}</p>
+  <p id="decision-feedback" role="alert" hidden></p>
   <a class="link-button" href="/dashboard">Back to dashboard</a>
   {% if upload.submission_type == 'code' %}<a class="link-button" href="/review/{{ upload.id }}/edit">Modify code and review again</a>{% endif %}
-  <label><input id="show-source-code" type="checkbox"> Show source code</label>
 </div>
 {% if upload.submission_type in ['file', 'folder'] %}
   <div class="project-review-layout">
@@ -253,7 +288,7 @@
 {% else %}
 <div class="card source-card">
   <h2>Submitted Code</h2>
-  <pre class="source-code review-source" hidden id="submitted-source">{% for line in code_lines %}<span class="review-source-line" id="submitted-source-line-{{ loop.index }}"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
+  <pre class="source-code review-source" id="source-view">{% for line in code_lines %}<span class="review-source-line" id="submitted-source-line-{{ loop.index }}"><span class="line-number">{{ loop.index }}</span>{{ line }}</span>
 {% endfor %}</pre>
 </div>
 {% if reviews %}
@@ -269,23 +304,82 @@
 {% endif %}
 {% endif %}
 {% endif %}
+{% if upload.submission_type not in ['file', 'folder'] or upload.review_status == 'reviewed' %}
+<div class="card">
+  <h2>Finished reviewing?</h2>
+  <p>Review the findings above and record your decisions before generating the report.</p>
+  <a class="link-button" href="{{ url_for('report_page', upload_id=upload.id) }}">Generate Report</a>
+</div>
+{% endif %}
 <script>
   (() => {
-    const toggle = document.getElementById("show-source-code");
-    const codeSections = document.querySelectorAll(".review-source");
-    if (toggle) {
-      toggle.addEventListener("change", () => {
-        for (const section of codeSections) {
-          section.hidden = !toggle.checked;
+    const decisionCounts = {
+      dataset: {
+        acceptCount: "{{ decision_counts.accept }}",
+        rejectCount: "{{ decision_counts.reject }}",
+        modifyCount: "{{ decision_counts.modify }}",
+      },
+    };
+    const decisionButtons = document.querySelectorAll(".save-decision-button");
+    for (const button of decisionButtons) {
+      button.addEventListener("click", async () => {
+        const form = button.closest(".decision-form");
+        const decision = button.dataset.decision;
+        if (!form || !["accept", "reject"].includes(decision)) return;
+        const card = form.closest(".finding-card");
+        const previousDecision = ["accept", "reject", "modify"].find((status) =>
+          card.classList.contains(`decision-${status}`)
+        );
+        const decisionActionButtons = form.querySelectorAll(".save-decision-button");
+        const feedback = document.getElementById("decision-feedback");
+        feedback.hidden = true;
+        feedback.textContent = "";
+        decisionActionButtons.forEach((actionButton) => { actionButton.disabled = true; });
+        try {
+          const formData = new FormData(form);
+          formData.set("decision", decision);
+          const response = await fetch(form.action, {
+            method: "POST",
+            body: formData,
+            headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" },
+          });
+          const contentType = response.headers.get("content-type") || "";
+          if (!contentType.includes("application/json")) {
+            throw new Error(
+              response.redirected
+                ? "Your session may have expired. Please sign in again, then retry."
+                : `The server returned an unexpected response (${response.status}). Please retry.`
+            );
+          }
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "Could not save this decision.");
+
+          if (previousDecision) {
+            decisionCounts.dataset[`${previousDecision}Count`] =
+              String(Number(decisionCounts.dataset[`${previousDecision}Count`]) - 1);
+          }
+          decisionCounts.dataset[`${result.decision}Count`] =
+            String(Number(decisionCounts.dataset[`${result.decision}Count`]) + 1);
+          card.classList.remove("decision-accept", "decision-reject", "decision-modify");
+          card.classList.add(`decision-${result.decision}`);
+
+          let badge = card.querySelector(".finding-decision-badge");
+          if (!badge) {
+            badge = document.createElement("span");
+            badge.className = "finding-decision-badge";
+            card.querySelector("h3").append(badge);
+          }
+          badge.textContent = `Marked ${result.decision}`;
+
+        } catch (error) {
+          console.error("Could not save review decision.", error);
+          feedback.textContent = error.message;
+          feedback.hidden = false;
+        } finally {
+          decisionActionButtons.forEach((actionButton) => { actionButton.disabled = false; });
         }
       });
     }
-
-    document.querySelectorAll(".open-project-finding").forEach((button) => {
-      button.addEventListener("click", () => {
-        window.location.assign(button.dataset.targetUrl);
-      });
-    });
 
     const statusUrl = {% if upload.submission_type in ['file', 'folder'] and upload.review_status == 'processing' %}{{ url_for('project_review_status', upload_id=upload.id)|tojson }}{% else %}null{% endif %};
     if (statusUrl) {
